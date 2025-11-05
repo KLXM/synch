@@ -1,0 +1,58 @@
+title = Synch
+settings = Einstellungen
+help = Hilfe
+
+# Settings
+settings_title = Synch Einstellungen
+auto_generate_keys = Automatische Key-Generierung
+auto_generate_keys_note = Generiert automatisch eindeutige Keys für Module/Templates ohne Key
+
+key_generation_strategy = Key-Generierungs-Strategie
+key_generation_strategy_note = Strategie für die automatische Key-Generierung
+update_existing_on_key_conflict = Existierende Items aktualisieren
+update_existing_on_key_conflict_note = Verhindert Duplikate: Aktualisiert existierende Module/Templates bei Key-Konflikten
+
+# Key generation strategies
+strategy_name_based = Aus Name ableiten (empfohlen)
+strategy_date_name = Datum + Name
+strategy_hash_based = Hash basiert
+
+# Messages
+sync_success = Synchronisation erfolgreich abgeschlossen
+sync_error = Fehler bei der Synchronisation
+no_items_to_sync = Keine Items zum Synchronisieren gefunden
+config_saved = Einstellungen erfolgreich gespeichert
+save_settings = Einstellungen speichern
+sync_now = Jetzt synchronisieren
+
+# Sections
+sync_options = Synchronisations-Optionen
+folder_options = Ordner-Optionen
+status_info = Status-Information
+
+# Status
+modules_in_db = Module in Datenbank
+templates_in_db = Templates in Datenbank
+sync_description = Synchronisiert Module, Templates und Actions zwischen Dateisystem und Datenbank mit der modernen key-basierten Methode.
+actions_in_db = Actions in Datenbank
+
+# Performance
+change_detection = Intelligente Change-Detection
+change_detection_note = Synchronisiert nur bei tatsächlichen Änderungen für bessere Performance
+sync_performance = Sync-Performance optimiert
+cache_enabled = 60s Cache für Change-Detection
+
+# Sync Control
+sync_paused = Auto-Sync pausiert
+sync_active = Auto-Sync aktiv
+pause_sync = Auto-Sync pausieren
+resume_sync = Auto-Sync fortsetzen
+pause_sync_note = Pausiert die automatische Synchronisation temporär (für Entwicklung)
+sync_status = Sync-Status
+
+# Auto-Sync
+sync_frontend = Im Frontend synchronisieren
+sync_frontend_note = Nur wenn als Admin im Backend eingeloggt
+sync_backend = Im Backend synchronisieren  
+sync_backend_note = Nur wenn als Admin eingeloggt
+

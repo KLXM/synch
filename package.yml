@@ -1,0 +1,25 @@
+package: synch
+version: '1.0.0'
+author: 'REDAXO Team'
+supportpage: 'https://github.com/redaxo/redaxo'
+
+page:
+    title: 'translate:title'
+    perm: admin
+    icon: rex-icon fa-refresh
+    subpages:
+        settings: { title: 'translate:settings' }
+        help: { title: 'translate:help', subPath: README.md, itemClass: 'pull-right' }
+
+requires:
+    redaxo: '^5.15.0'
+
+default_config:
+    auto_generate_keys: true
+    key_generation_strategy: 'name_based'
+    update_existing_on_key_conflict: true
+    sync_frontend: false
+    sync_backend: true
+
+console_commands:
+    synch:sync: synch_sync_command

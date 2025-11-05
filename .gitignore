@@ -1,0 +1,21 @@
+# REDAXO Cache
+cache/
+
+# IDE Files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Development files
+*.bak
+*.orig
+*~
