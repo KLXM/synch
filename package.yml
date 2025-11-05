@@ -1,7 +1,8 @@
 package: synch
 version: '1.0.0'
-author: 'REDAXO Team'
-supportpage: 'https://github.com/redaxo/redaxo'
+author: 'KLXM Crossmedia GmbH'
+supportpage: 'https://github.com/KLXM/synch'
+license: MIT
 
 page:
     title: 'translate:title'
