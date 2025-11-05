@@ -120,19 +120,6 @@ $results = synch_migration::migrateModulesFromDeveloper();
 $results = synch_migration::migrateTemplatesFromDeveloper();
 ```
 
-## Unterschiede zum developer Addon
-
-| Aspekt | developer Addon | synch Addon |
-|--------|-----------------|-------------|
-| **Basis** | ID-basiert | Key-basiert |
-| **Ordnernamen** | `News Module [23]` | `news_module` |
-| **Actions** | Limitiert | Vollständig (Preview, Presave, Postsave) |
-| **Performance** | Sync bei jedem Request | Change-Detection + Cache |
-| **Pausieren** | Nicht verfügbar | Pausieren/Fortsetzen möglich |
-| **Team-Entwicklung** | Problematisch (IDs unterschiedlich) | Problemlos (Keys eindeutig) |
-| **Duplikate** | Möglich | Verhindert |
-| **Legacy-Code** | Viel (5+ Jahre) | Keiner (frische Codebasis) |
-
 ## Dateiformate
 
 ### metadata.yml (Module)
