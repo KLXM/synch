@@ -157,6 +157,91 @@ $results = synch_migration::migrateModulesFromDeveloper();
 $results = synch_migration::migrateTemplatesFromDeveloper();
 ```
 
+## Neues Modul/Template/Action anlegen
+
+### Minimal-Setup für Module
+
+Um ein neues Modul anzulegen, reicht ein Ordner mit **metadata.yml**:
+
+```
+redaxo/data/addons/synch/modules/news_module/
+└── metadata.yml
+```
+
+**Minimal metadata.yml:**
+```yaml
+name: "News Module"
+key: "news_module"
+```
+
+Alle anderen Felder werden automatisch generiert:
+- `createdate`/`updatedate` → aktueller Timestamp
+- `createuser`/`updateuser` → aktueller User oder "synch"
+- `input.php`/`output.php` → optional, leer wenn nicht vorhanden
+
+**Mit PHP-Code:**
+```
+news_module/
+├── metadata.yml
+├── input.php     # Optional: Eingabe-Code
+└── output.php    # Optional: Ausgabe-Code
+```
+
+### Minimal-Setup für Templates
+
+```
+redaxo/data/addons/synch/templates/default_template/
+├── metadata.yml
+└── template.php    # Optional
+```
+
+**Minimal metadata.yml:**
+```yaml
+name: "Default Template"
+key: "default_template"
+```
+
+### Minimal-Setup für Actions
+
+```
+redaxo/data/addons/synch/actions/newsletter_signup/
+├── metadata.yml
+└── action.php      # Optional
+```
+
+**Minimal metadata.yml:**
+```yaml
+name: "Newsletter Signup"
+key: "newsletter_signup"
+```
+
+### Quick-Start Beispiel
+
+1. **Ordner erstellen:**
+   ```bash
+   mkdir -p redaxo/data/addons/synch/modules/my_new_module
+   ```
+
+2. **metadata.yml erstellen:**
+   ```bash
+   echo 'name: "My New Module"' > redaxo/data/addons/synch/modules/my_new_module/metadata.yml
+   ```
+
+3. **Synchronisieren:** 
+   - Backend: **Synch > Einstellungen** → "Jetzt synchronisieren" 
+   - Console: `php redaxo/bin/console synch:sync --modules-only`
+
+4. **Fertig!** Das Modul ist in REDAXO verfügbar
+
+### Auto-Key-Generierung
+
+Wenn `auto_generate_keys` aktiviert ist (Standard), reicht sogar nur der Name:
+
+```yaml
+name: "News Module"
+# key wird automatisch zu "news_module" generiert
+```
+
 ## Dateiformate
 
 ### metadata.yml (Module)
