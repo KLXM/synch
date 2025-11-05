@@ -26,6 +26,17 @@ if (rex_post('save_settings', 'boolean')) {
     $message = $addon->i18n('config_saved');
 }
 
+// Auto-Sync pausieren/fortsetzen
+if (rex_post('pause_auto_sync', 'boolean')) {
+    synch_manager::pauseAutoSync();
+    $message = $addon->i18n('auto_sync_paused', 'Auto-Sync pausiert');
+}
+
+if (rex_post('resume_auto_sync', 'boolean')) {
+    synch_manager::resumeAutoSync();
+    $message = $addon->i18n('auto_sync_resumed', 'Auto-Sync fortgesetzt');
+}
+
 // Synchronisation ausführen
 if (rex_post('run_sync', 'boolean')) {
     try {
@@ -98,11 +109,25 @@ if ($error) {
             <div class="panel-body">
                 <p><?= $addon->i18n('sync_description') ?></p>
                 
-                <form method="post">
+                <form method="post" style="display: inline-block;">
                     <button type="submit" name="run_sync" value="1" class="btn btn-primary btn-lg">
                         <i class="rex-icon fa-refresh"></i> <?= $addon->i18n('sync_now') ?>
                     </button>
                 </form>
+                
+                <?php if (synch_manager::isAutoSyncPaused()): ?>
+                <form method="post" style="display: inline-block; margin-left: 10px;">
+                    <button type="submit" name="resume_auto_sync" value="1" class="btn btn-success">
+                        <i class="rex-icon fa-play"></i> Auto-Sync fortsetzen
+                    </button>
+                </form>
+                <?php else: ?>
+                <form method="post" style="display: inline-block; margin-left: 10px;">
+                    <button type="submit" name="pause_auto_sync" value="1" class="btn btn-warning">
+                        <i class="rex-icon fa-pause"></i> Auto-Sync pausieren
+                    </button>
+                </form>
+                <?php endif; ?>
                 
                 <hr>
                 

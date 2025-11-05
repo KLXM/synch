@@ -55,4 +55,8 @@ sync_frontend = Im Frontend synchronisieren
 sync_frontend_note = Nur wenn als Admin im Backend eingeloggt
 sync_backend = Im Backend synchronisieren  
 sync_backend_note = Nur wenn als Admin eingeloggt
+auto_sync_paused = Auto-Sync pausiert
+auto_sync_resumed = Auto-Sync fortgesetzt
+pause_auto_sync = Auto-Sync pausieren
+resume_auto_sync = Auto-Sync fortsetzen
 
