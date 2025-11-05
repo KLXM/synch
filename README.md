@@ -21,7 +21,7 @@ Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen D
 
 ### Eigener Basis-Pfad (Optional)
 
-Der Standard-Pfad für Sync-Dateien ist `redaxo/data/addons/synch/`. Sie können einen eigenen Pfad definieren, z.B. im Projekt-Root:
+Der Standard-Pfad für Sync-Dateien ist `redaxo/data/addons/synch/`. Ein eigener Pfad kann definiert werden, z.B. im Projekt-Root:
 
 ```php
 // In boot.php oder config.php
@@ -142,10 +142,10 @@ Das Addon nutzt intelligente Change-Detection:
 - Vergleicht Timestamps zwischen DB und Dateisystem
 
 ### Auto-Sync Pausieren
-Für die Entwicklung kann die automatische Synchronisation pausiert werden:
-- **Pausieren-Button** auf der Hauptseite
-- Pausierung überlebt Server-Neustarts
-- Status wird in den Einstellungen angezeigt
+Für die Entwicklung lässt sich die automatische Synchronisation pausieren:
+- **Pausieren-Button** in den Einstellungen
+- Pausierung endet automatisch nach 30 Minuten
+- Status wird mit Countdown angezeigt
 
 ## Migration vom developer Addon
 
@@ -214,7 +214,7 @@ mail('admin@example.com', 'Neue Newsletter-Anmeldung', $_POST['email']);
 
 ## Best Practices
 
-1. **Eindeutige Keys**: Verwenden Sie beschreibende, eindeutige Keys
+1. **Eindeutige Keys**: Beschreibende, eindeutige Keys verwenden
 2. **Naming Convention**: `module_name`, `template_name` (lowercase, underscores)
 3. **Git-Integration**: Ordner in Version Control einbeziehen
 4. **Automatisierung**: Sync in Deploy-Prozess integrieren
@@ -229,7 +229,7 @@ mail('admin@example.com', 'Neue Newsletter-Anmeldung', $_POST['email']);
 
 **Eigener Pfad** (z.B. `src/`):
 - ✅ **Git-Integration**: Sync-Dateien direkt im Repository
-- ✅ **Team-Entwicklung**: Alle haben gleiche Pfade
+- ✅ **Team-Entwicklung**: Einheitliche Pfade für alle Entwickler
 - ✅ **CI/CD-freundlich**: Deploy-Prozesse einfacher
 - ✅ **Backup-sicher**: Teil des Code-Repositories
 - ❌ Erfordert einmalige Konfiguration
@@ -251,4 +251,4 @@ mail('admin@example.com', 'Neue Newsletter-Anmeldung', $_POST['email']);
 **Lösung**: Eindeutige Keys in metadata.yml definieren
 
 **Problem**: Ordner haben immer noch IDs  
-**Lösung**: `clean_folders` aktivieren und neu synchronisieren
+**Lösung**: Einmal manuell synchronisieren - saubere Ordnernamen sind immer aktiv

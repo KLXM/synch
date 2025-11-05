@@ -2,11 +2,11 @@
 
 ## Eigenen Basis-Pfad setzen
 
-Das synch Addon kann so konfiguriert werden, dass es Sync-Dateien in einem eigenen Verzeichnis speichert, anstatt im Standard-Pfad `redaxo/data/addons/synch/`.
+Das synch Addon lässt sich so konfigurieren, dass Sync-Dateien in einem eigenen Verzeichnis gespeichert werden, anstatt im Standard-Pfad `redaxo/data/addons/synch/`.
 
 ### 1. Konfiguration in boot.php
 
-Erstellen oder erweitern Sie die `boot.php` in Ihrem Projekt:
+Die `boot.php` im Projekt erstellen oder erweitern:
 
 ```php
 <?php
@@ -40,7 +40,7 @@ synch_manager::setBasePath(rex_path::assets());
 
 ### 3. Git Integration
 
-Für optimale Git-Integration fügen Sie das Sync-Verzeichnis zur `.gitignore` hinzu, aber **nicht** die Inhalte:
+Für optimale Git-Integration das Sync-Verzeichnis zur `.gitignore` hinzufügen, aber **nicht** die Inhalte:
 
 ```gitignore
 # .gitignore
@@ -57,7 +57,7 @@ Für optimale Git-Integration fügen Sie das Sync-Verzeichnis zur `.gitignore` h
 
 ### 4. Team-Setup
 
-Für Teams empfiehlt sich folgende Struktur in der `boot.php`:
+Für Teams empfiehlt sich diese Struktur in der `boot.php`:
 
 ```php
 <?php
@@ -76,7 +76,7 @@ if (rex_addon::get('synch')->isAvailable()) {
 
 ### 5. Migration von Standard-Pfad
 
-Wenn Sie bereits Sync-Dateien im Standard-Pfad haben:
+Bei bereits vorhandenen Sync-Dateien im Standard-Pfad:
 
 ```bash
 # Verschieben der bestehenden Dateien
@@ -85,4 +85,4 @@ mv redaxo/data/addons/synch/templates/* src/templates/
 mv redaxo/data/addons/synch/actions/* src/actions/
 ```
 
-Dann die `boot.php` Konfiguration hinzufügen und einmal synchronisieren lassen.
+Anschließend die `boot.php` Konfiguration hinzufügen und einmal synchronisieren.
