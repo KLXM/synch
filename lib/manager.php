@@ -12,7 +12,8 @@ class synch_manager
      */
     public static function setBasePath(string $basePath): void
     {
-        self::$basePath = $basePath;
+        // Normalisiere den Pfad (entferne trailing slash)
+        self::$basePath = rtrim($basePath, '/\\');
     }
 
     /**
@@ -20,7 +21,14 @@ class synch_manager
      */
     public static function getBasePath(): string
     {
-        return self::$basePath ?: rex_path::addonData('synch');
+        $path = self::$basePath ?: rex_path::addonData('synch');
+        
+        // Stelle sicher, dass der Pfad existiert
+        if (!is_dir($path)) {
+            rex_dir::create($path);
+        }
+        
+        return $path;
     }
 
     /**

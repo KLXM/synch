@@ -19,6 +19,43 @@ Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen D
 2. Addon im Backend aktivieren
 3. Einstellungen nach Bedarf anpassen
 
+### Eigener Basis-Pfad (Optional)
+
+Der Standard-Pfad für Sync-Dateien ist `redaxo/data/addons/synch/`. Sie können einen eigenen Pfad definieren, z.B. im Projekt-Root:
+
+```php
+// In boot.php oder config.php
+if (rex_addon::get('synch')->isAvailable()) {
+    synch_manager::setBasePath(rex_path::src());
+}
+```
+
+**Beispiele für eigene Pfade:**
+```php
+// Alle Sync-Dateien im src/ Verzeichnis
+synch_manager::setBasePath(rex_path::src());
+
+// Eigener sync/ Ordner im Projekt-Root  
+synch_manager::setBasePath(rex_path::base('sync'));
+
+// In einem Git-Repository außerhalb von REDAXO
+synch_manager::setBasePath('/path/to/your/git-repo/redaxo-sync');
+```
+
+**Ordnerstruktur bei eigenem Pfad:**
+```
+src/                              # Bei setBasePath(rex_path::src())
+├── modules/
+│   ├── news_module/
+│   └── contact_form/
+├── templates/ 
+│   ├── default_template/
+│   └── mobile_template/
+└── actions/
+    ├── newsletter_signup/
+    └── contact_validation/
+```
+
 ## Verwendung
 
 ### Backend
@@ -181,6 +218,21 @@ mail('admin@example.com', 'Neue Newsletter-Anmeldung', $_POST['email']);
 2. **Naming Convention**: `module_name`, `template_name` (lowercase, underscores)
 3. **Git-Integration**: Ordner in Version Control einbeziehen
 4. **Automatisierung**: Sync in Deploy-Prozess integrieren
+5. **Eigener Basis-Pfad**: Für bessere Git-Integration außerhalb von `data/`
+
+### Basis-Pfad Empfehlungen
+
+**Standard-Pfad** (`redaxo/data/addons/synch/`):
+- ✅ Funktioniert sofort ohne Konfiguration
+- ✅ Wird automatisch bei Addon-Installation erstellt
+- ❌ Liegt im `data/` Verzeichnis (oft nicht in Git)
+
+**Eigener Pfad** (z.B. `src/`):
+- ✅ **Git-Integration**: Sync-Dateien direkt im Repository
+- ✅ **Team-Entwicklung**: Alle haben gleiche Pfade
+- ✅ **CI/CD-freundlich**: Deploy-Prozesse einfacher
+- ✅ **Backup-sicher**: Teil des Code-Repositories
+- ❌ Erfordert einmalige Konfiguration
 
 ## Vorteile für Teams
 
