@@ -214,10 +214,15 @@ if ($error) {
                     </div>
                     
                     <?php if (synch_manager::isAutoSyncPaused()): ?>
+                    <?php
+                    $pausedAt = $addon->getConfig('auto_sync_paused_at', 0);
+                    $resumeTime = $pausedAt + (30 * 60); // 30 Minuten später
+                    $remainingMinutes = max(0, ceil(($resumeTime - time()) / 60));
+                    ?>
                     <div class="alert alert-warning">
                         <i class="rex-icon fa-pause"></i> <strong>Auto-Sync pausiert:</strong>
-                        Die automatische Synchronisation ist momentan pausiert. Sie können sie über die 
-                        <a href="<?= rex_url::currentBackendPage(['page' => 'synch/main']) ?>">Hauptseite</a> wieder aktivieren.
+                        Die automatische Synchronisation ist pausiert und wird automatisch in <strong><?= $remainingMinutes ?> Minuten</strong> fortgesetzt.
+                        Sie können sie auch manuell über den "Fortsetzen" Button reaktivieren.
                     </div>
                     <?php endif; ?>
                     
@@ -304,7 +309,11 @@ if ($error) {
                             <i class="rex-icon fa-<?= $isPaused ? 'pause' : 'play' ?>"></i> 
                             Auto-Sync: <?= $isPaused ? 'Pausiert' : 'Aktiv' ?>
                             <?php if ($isPaused && $pausedAt): ?>
-                                <small class="text-muted">(seit <?= date('H:i:s', $pausedAt) ?>)</small>
+                                <?php 
+                                $resumeTime = $pausedAt + (30 * 60);
+                                $remainingMinutes = max(0, ceil(($resumeTime - time()) / 60));
+                                ?>
+                                <small class="text-muted">(<?= $remainingMinutes ?>min verbleibend)</small>
                             <?php endif; ?>
                         </span>
                     </li>

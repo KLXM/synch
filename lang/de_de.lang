@@ -47,7 +47,7 @@ sync_paused = Auto-Sync pausiert
 sync_active = Auto-Sync aktiv
 pause_sync = Auto-Sync pausieren
 resume_sync = Auto-Sync fortsetzen
-pause_sync_note = Pausiert die automatische Synchronisation temporär (für Entwicklung)
+pause_sync_note = Pausiert die automatische Synchronisation für 30 Minuten (für Entwicklung)
 sync_status = Sync-Status
 
 # Auto-Sync
@@ -55,8 +55,9 @@ sync_frontend = Im Frontend synchronisieren
 sync_frontend_note = Nur wenn als Admin im Backend eingeloggt
 sync_backend = Im Backend synchronisieren  
 sync_backend_note = Nur wenn als Admin eingeloggt
-auto_sync_paused = Auto-Sync pausiert
+auto_sync_paused = Auto-Sync pausiert (30min)
 auto_sync_resumed = Auto-Sync fortgesetzt
-pause_auto_sync = Auto-Sync pausieren
+pause_auto_sync = Auto-Sync pausieren (30min)
 resume_auto_sync = Auto-Sync fortsetzen
+auto_pause_duration = Pause-Dauer: 30 Minuten
 

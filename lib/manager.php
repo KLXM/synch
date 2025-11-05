@@ -86,7 +86,22 @@ class synch_manager
      */
     public static function isAutoSyncPaused(): bool
     {
-        return rex_addon::get('synch')->getConfig('auto_sync_paused', false);
+        $addon = rex_addon::get('synch');
+        $isPaused = $addon->getConfig('auto_sync_paused', false);
+        
+        // Wenn pausiert, prüfe ob 30 Minuten abgelaufen sind
+        if ($isPaused) {
+            $pausedAt = $addon->getConfig('auto_sync_paused_at', 0);
+            $thirtyMinutesAgo = time() - (30 * 60); // 30 Minuten in Sekunden
+            
+            // Automatisch fortsetzen nach 30 Minuten
+            if ($pausedAt && $pausedAt < $thirtyMinutesAgo) {
+                self::resumeAutoSync();
+                return false;
+            }
+        }
+        
+        return $isPaused;
     }
 
     /**
