@@ -13,10 +13,6 @@ if (method_exists('rex', 'getConsole') && rex::getConsole()) {
     return;
 }
 
-// Autoloader für Klassen
-rex_autoload::addDirectory(__DIR__ . '/lib');
-rex_autoload::addDirectory(__DIR__ . '/console');
-
 // Automatische Synchronisation basierend auf Einstellungen
 $addon = rex_addon::get('synch');
 
