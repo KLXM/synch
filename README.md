@@ -1,6 +1,6 @@
 # Synch - Moderne Key-basierte Synchronisation für REDAXO
 
-Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen Dateisystem und Datenbank als Alternative zum Developer Addon. Entwickelt für REDAXO 5.15+ ohne Legacy-Altlasten.
+Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen Dateisystem und Datenbank.
 
 ## Features
 
@@ -232,6 +232,52 @@ key: "newsletter_signup"
    - Console: `php redaxo/bin/console synch:sync --modules-only`
 
 4. **Fertig!** Das Modul ist in REDAXO verfügbar
+
+## Sprechende Dateinamen
+
+### Standard vs. Sprechend
+
+**Standard-Format:**
+```
+news_module/
+├── metadata.yml
+├── input.php
+└── output.php
+```
+
+**Sprechendes Format (mit Key als Prefix):**
+```
+news_module/
+├── metadata.yml
+├── news_module input.php
+└── news_module output.php
+```
+
+### IDE-Integration aktivieren
+
+In **Synch > Einstellungen** die Option **"Sprechende Dateinamen"** aktivieren und per Button automatisch alle Dateien umbenennen.
+
+**Vorteile:**
+- **PhpStorm/VSCode:** `news_module input` findet die Datei sofort
+- **Eindeutige Dateierkennung** in Suchergebnissen
+- **Bessere Übersicht** bei vielen geöffneten Dateien
+
+### ⚠️ Wichtige Hinweise
+
+**Beim manuellen Anlegen neuer Dateien:**
+
+1. **Wenn sprechende Dateinamen aktiviert sind:**
+   - ✅ Anlegen: `news_module input.php` (wird beim Sync gefunden)
+   - ❌ Vermeiden: `input.php` (wird beim nächsten DB→Datei Sync überschrieben!)
+
+2. **Wenn Standard-Dateinamen aktiviert sind:**
+   - ✅ Anlegen: `input.php` (wird beim Sync gefunden)
+   - ❌ Vermeiden: `news_module input.php` (wird ignoriert)
+
+**Sync-Verhalten:**
+- **Lesen (Datei → DB):** Sucht beide Formate (sprechend zuerst, dann Standard)
+- **Schreiben (DB → Datei):** Erstellt nur das aktuell konfigurierte Format
+- **Automatisches Umbenennen:** Nur per Settings-Button, nicht beim normalen Sync
 
 ### Auto-Key-Generierung
 

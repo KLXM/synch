@@ -276,15 +276,15 @@ if ($error) {
                         </label>
                         <p class="text-muted">
                             <strong>Standard:</strong> <code>input.php</code>, <code>output.php</code><br>
-                            <strong>Sprechend:</strong> <code>News Module input.php</code>, <code>News Module output.php</code><br>
-                            Verbessert IDE-Integration (PhpStorm sucht "news module input")
+                            <strong>Sprechend:</strong> <code>news_module input.php</code>, <code>news_module output.php</code><br>
+                            Verbessert IDE-Integration (PhpStorm sucht "news_module input")
                         </p>
                     </div>
                     
                     <?php if ($addon->getConfig('descriptive_filenames', false)): ?>
                     <div class="alert alert-info">
                         <i class="rex-icon fa-lightbulb-o"></i> <strong>IDE-Tipp:</strong> 
-                        In PhpStorm/VSCode einfach "news module input" eingeben um die Datei zu öffnen, egal wo sie liegt!
+                        In PhpStorm/VSCode einfach "news_module input" eingeben um die Datei zu öffnen, egal wo sie liegt!
                     </div>
                     <?php endif; ?>
                     

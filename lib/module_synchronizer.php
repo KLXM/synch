@@ -35,13 +35,13 @@ class synch_module_synchronizer extends synch_synchronizer
         
         // input.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['input'])) {
-            $inputFilename = $this->getInputFilename($item['name']);
+            $inputFilename = $this->getInputFilename($item['key']);
             rex_file::put($dir . $inputFilename, $item['input']);
         }
         
         // output.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['output'])) {
-            $outputFilename = $this->getOutputFilename($item['name']);
+            $outputFilename = $this->getOutputFilename($item['key']);
             rex_file::put($dir . $outputFilename, $item['output']);
         }
     }
@@ -62,12 +62,12 @@ class synch_module_synchronizer extends synch_synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Input/Output aus Dateien lesen (beide Formate unterstützen)
-        $inputFile = $this->findInputFile($dir, $metadata['name'] ?? '');
+        $inputFile = $this->findInputFile($dir, $metadata['key'] ?? '');
         if ($inputFile && file_exists($inputFile)) {
             $sql->setValue('input', rex_file::get($inputFile));
         }
         
-        $outputFile = $this->findOutputFile($dir, $metadata['name'] ?? '');
+        $outputFile = $this->findOutputFile($dir, $metadata['key'] ?? '');
         if ($outputFile && file_exists($outputFile)) {
             $sql->setValue('output', rex_file::get($outputFile));
         }
@@ -103,13 +103,13 @@ class synch_module_synchronizer extends synch_synchronizer
         $sql->setValue('createuser', rex::getUser()?->getLogin() ?? 'synch');
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
-        // Input/Output aus Dateien lesen (beide Formate unterstützen)
-        $inputFile = $this->findInputFile($dir, $metadata['name'] ?? '');
+        // Input/Output aus Dateien lesen (beide Formate unterstützen - Key als Prefix)
+        $inputFile = $this->findInputFile($dir, $key);
         if ($inputFile && file_exists($inputFile)) {
             $sql->setValue('input', rex_file::get($inputFile));
         }
         
-        $outputFile = $this->findOutputFile($dir, $metadata['name'] ?? '');
+        $outputFile = $this->findOutputFile($dir, $key);
         if ($outputFile && file_exists($outputFile)) {
             $sql->setValue('output', rex_file::get($outputFile));
         }

@@ -33,7 +33,7 @@ class synch_action_synchronizer extends synch_synchronizer
 
         // Action PHP-Datei schreiben (mit descriptive filename wenn aktiviert)
         $content = $this->generateActionContent($item);
-        $actionFilename = $this->getActionFilename($item['name']);
+        $actionFilename = $this->getActionFilename($item['key']);
         rex_file::put($dir . $actionFilename, $content);
     }
 
@@ -42,7 +42,7 @@ class synch_action_synchronizer extends synch_synchronizer
      */
     protected function updateItem(int $id, string $dir, array $metadata): void
     {
-        $actionFile = $this->findActionFile($dir, $metadata['name'] ?? '');
+        $actionFile = $this->findActionFile($dir, $metadata['key'] ?? '');
         if (!$actionFile || !file_exists($actionFile)) {
             return;
         }
@@ -68,7 +68,7 @@ class synch_action_synchronizer extends synch_synchronizer
      */
     protected function createItem(string $dir, array $metadata): void
     {
-        $actionFile = $this->findActionFile($dir, $metadata['name'] ?? '');
+        $actionFile = $this->findActionFile($dir, $metadata['key'] ?? '');
         if (!$actionFile || !file_exists($actionFile)) {
             return;
         }

@@ -21,10 +21,10 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Dateinamen zurück (abhängig von descriptive_filenames Setting)
      */
-    protected function getInputFilename(string $name = ''): string
+    protected function getInputFilename(string $key = ''): string
     {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
-            return $name . ' input.php';
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
+            return $key . ' input.php';
         }
         return self::INPUT_FILE;
     }
@@ -32,10 +32,10 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Output-Dateinamen zurück
      */
-    protected function getOutputFilename(string $name = ''): string
+    protected function getOutputFilename(string $key = ''): string
     {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
-            return $name . ' output.php';
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
+            return $key . ' output.php';
         }
         return self::OUTPUT_FILE;
     }
@@ -43,10 +43,10 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Template-Dateinamen zurück
      */
-    protected function getTemplateFilename(string $name = ''): string
+    protected function getTemplateFilename(string $key = ''): string
     {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
-            return $name . ' template.php';
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
+            return $key . ' template.php';
         }
         return 'template.php';
     }
@@ -54,37 +54,20 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Action-Dateinamen zurück
      */
-    protected function getActionFilename(string $name = ''): string
+    protected function getActionFilename(string $key = ''): string
     {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
-            return $name . ' action.php';
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
+            return $key . ' action.php';
         }
         return 'action.php';
     }
 
     /**
-     * Findet Input-Datei (alt oder neues Format)
-     */
-    protected function findInputFile(string $dir, string $name = ''): ?string
-    {
-        $descriptiveFile = $dir . $name . ' input.php';
-        $standardFile = $dir . self::INPUT_FILE;
-        
-        if (file_exists($descriptiveFile)) {
-            return $descriptiveFile;
-        }
-        if (file_exists($standardFile)) {
-            return $standardFile;
-        }
-        return null;
-    }
-
-    /**
      * Findet Output-Datei (alt oder neues Format)
      */
-    protected function findOutputFile(string $dir, string $name = ''): ?string
+    protected function findOutputFile(string $dir, string $key = ''): ?string
     {
-        $descriptiveFile = $dir . $name . ' output.php';
+        $descriptiveFile = $dir . $key . ' output.php';
         $standardFile = $dir . self::OUTPUT_FILE;
         
         if (file_exists($descriptiveFile)) {
@@ -99,9 +82,9 @@ abstract class synch_synchronizer
     /**
      * Findet Template-Datei (alt oder neues Format)
      */
-    protected function findTemplateFile(string $dir, string $name = ''): ?string
+    protected function findTemplateFile(string $dir, string $key = ''): ?string
     {
-        $descriptiveFile = $dir . $name . ' template.php';
+        $descriptiveFile = $dir . $key . ' template.php';
         $standardFile = $dir . 'template.php';
         
         if (file_exists($descriptiveFile)) {
@@ -116,9 +99,9 @@ abstract class synch_synchronizer
     /**
      * Findet Action-Datei (alt oder neues Format)
      */
-    protected function findActionFile(string $dir, string $name = ''): ?string
+    protected function findActionFile(string $dir, string $key = ''): ?string
     {
-        $descriptiveFile = $dir . $name . ' action.php';
+        $descriptiveFile = $dir . $key . ' action.php';
         $standardFile = $dir . 'action.php';
         
         if (file_exists($descriptiveFile)) {
@@ -342,18 +325,20 @@ abstract class synch_synchronizer
                 $metadata = rex_file::getConfig($metadataFile);
                 $name = $metadata['name'] ?? $dir;
                 
+                $key = $metadata['key'] ?? $dir;
+                
                 if ($toDescriptive) {
-                    // Von standard zu descriptive
-                    $this->renameFile($fullDir, self::INPUT_FILE, $name . ' input.php');
-                    $this->renameFile($fullDir, self::OUTPUT_FILE, $name . ' output.php');
-                    $this->renameFile($fullDir, 'template.php', $name . ' template.php');
-                    $this->renameFile($fullDir, 'action.php', $name . ' action.php');
+                    // Von standard zu descriptive (mit Key als Prefix)
+                    $this->renameFile($fullDir, self::INPUT_FILE, $key . ' input.php');
+                    $this->renameFile($fullDir, self::OUTPUT_FILE, $key . ' output.php');
+                    $this->renameFile($fullDir, 'template.php', $key . ' template.php');
+                    $this->renameFile($fullDir, 'action.php', $key . ' action.php');
                 } else {
                     // Von descriptive zu standard
-                    $this->renameFile($fullDir, $name . ' input.php', self::INPUT_FILE);
-                    $this->renameFile($fullDir, $name . ' output.php', self::OUTPUT_FILE);
-                    $this->renameFile($fullDir, $name . ' template.php', 'template.php');
-                    $this->renameFile($fullDir, $name . ' action.php', 'action.php');
+                    $this->renameFile($fullDir, $key . ' input.php', self::INPUT_FILE);
+                    $this->renameFile($fullDir, $key . ' output.php', self::OUTPUT_FILE);
+                    $this->renameFile($fullDir, $key . ' template.php', 'template.php');
+                    $this->renameFile($fullDir, $key . ' action.php', 'action.php');
                 }
                 
                 $results['renamed']++;
