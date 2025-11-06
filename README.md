@@ -224,14 +224,41 @@ key: "newsletter_signup"
 
 2. **metadata.yml erstellen:**
    ```bash
-   echo 'name: "My New Module"' > redaxo/data/addons/synch/modules/my_new_module/metadata.yml
+   echo 'name: "My New Module"
+   key: "my_new_module"' > redaxo/data/addons/synch/modules/my_new_module/metadata.yml
    ```
 
-3. **Synchronisieren:** 
+3. **PHP-Dateien erstellen (optional):**
+   ```bash
+   # Sprechende Dateinamen (Standard seit v1.1)
+   echo '<?php echo "Input code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/my_new_module\ input.php
+   echo '<?php echo "Output code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/my_new_module\ output.php
+   
+   # Oder klassische Namen (werden beim Sync automatisch gelesen)
+   echo '<?php echo "Input code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/input.php
+   echo '<?php echo "Output code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/output.php
+   ```
+
+4. **Synchronisieren:** 
    - Backend: **Synch > Einstellungen** → "Jetzt synchronisieren" 
    - Console: `php redaxo/bin/console synch:sync --modules-only`
 
-4. **Fertig!** Das Modul ist in REDAXO verfügbar
+5. **Fertig!** Das Modul ist in REDAXO verfügbar
+
+### ⚠️ Wichtige Hinweise zum Sync-Verhalten
+
+**Beim Lesen (Dateien → Datenbank):**
+- Synch sucht automatisch nach beiden Formaten: `key input.php` und `input.php`
+- Manuell angelegte `input.php`/`output.php` werden korrekt eingelesen
+
+**Beim Schreiben (Datenbank → Dateien):**
+- Neue Dateien werden im aktuell konfigurierten Format erstellt
+- **Standard:** Sprechende Dateinamen (`news_module input.php`)
+- Alte Dateien bleiben bestehen → mögliche Duplikate!
+
+**Dateinamen-Migration:**
+- **Automatisch:** Über Button in den Einstellungen "Zu Standard-Namen / Zu sprechenden Namen"
+- **Manuell:** Alte Dateien löschen oder umbenennen vor Sync
 
 ## Sprechende Dateinamen
 
@@ -287,6 +314,40 @@ Wenn `auto_generate_keys` aktiviert ist (Standard), reicht sogar nur der Name:
 name: "News Module"
 # key wird automatisch zu "news_module" generiert
 ```
+
+## Sprechende Dateinamen (Standard)
+
+Seit v1.1 verwendet das synch Addon standardmäßig **sprechende Dateinamen** mit dem Key als Prefix:
+
+### Dateinamen-Formate
+
+| Typ | Standard (sprechend) | Klassisch |
+|-----|---------------------|-----------|
+| **Module** | `news_module input.php`<br>`news_module output.php` | `input.php`<br>`output.php` |
+| **Templates** | `default_template template.php` | `template.php` |
+| **Actions** | `newsletter_signup action.php` | `action.php` |
+
+### IDE-Integration
+
+**PhpStorm/VSCode Suche:**
+```
+news_module input    → Findet sofort "news_module input.php"
+contact input        → Findet "contact_form input.php" 
+newsletter action    → Findet "newsletter_signup action.php"
+```
+
+**Vorteile:**
+- 🔍 **Schnelleres Finden** von Dateien in der IDE
+- 📁 **Klare Zuordnung** auch in Dateilisten
+- 🔒 **Stabile Namen** (Key ändert sich nie, Titel kann sich ändern)
+- 🎯 **Konsistent** mit Ordnernamen (beides Key-basiert)
+
+### Umstellung
+
+In **Synch > Einstellungen** kann zwischen beiden Formaten umgestellt werden:
+- Button "Zu Standard-Namen" / "Zu sprechenden Namen"
+- Alle vorhandenen Dateien werden automatisch umbenannt
+- Keine manuellen Eingriffe erforderlich
 
 ## Dateiformate
 
