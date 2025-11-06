@@ -36,9 +36,10 @@ class synch_template_synchronizer extends synch_synchronizer
         
         rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
         
-        // template.php
+        // template.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['content'])) {
-            rex_file::put($dir . self::TEMPLATE_FILE, $item['content']);
+            $templateFilename = $this->getTemplateFilename($item['name']);
+            rex_file::put($dir . $templateFilename, $item['content']);
         }
     }
 
@@ -58,9 +59,9 @@ class synch_template_synchronizer extends synch_synchronizer
         $sql->setValue('updatedate', date('Y-m-d H:i:s'));
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
-        // Content aus Datei lesen
-        $templateFile = $dir . self::TEMPLATE_FILE;
-        if (file_exists($templateFile)) {
+        // Content aus Datei lesen (beide Formate unterstützen)
+        $templateFile = $this->findTemplateFile($dir, $metadata['name'] ?? '');
+        if ($templateFile && file_exists($templateFile)) {
             $sql->setValue('content', rex_file::get($templateFile));
         }
         
@@ -96,9 +97,9 @@ class synch_template_synchronizer extends synch_synchronizer
         $sql->setValue('createuser', rex::getUser()?->getLogin() ?? 'synch');
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
-        // Content aus Datei lesen
-        $templateFile = $dir . self::TEMPLATE_FILE;
-        if (file_exists($templateFile)) {
+        // Content aus Datei lesen (beide Formate unterstützen)
+        $templateFile = $this->findTemplateFile($dir, $metadata['name'] ?? '');
+        if ($templateFile && file_exists($templateFile)) {
             $sql->setValue('content', rex_file::get($templateFile));
         }
         

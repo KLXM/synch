@@ -9,6 +9,44 @@ $addon = rex_addon::get('synch');
 $message = '';
 $error = '';
 
+// Dateinamen umstellen
+if (rex_post('toggle_descriptive_filenames', 'boolean')) {
+    $currentSetting = $addon->getConfig('descriptive_filenames', false);
+    $newSetting = !$currentSetting;
+    
+    try {
+        // Alle Synchronizer durchgehen und Dateien umbenennen
+        $moduleSync = new synch_module_synchronizer();
+        $templateSync = new synch_template_synchronizer();
+        $actionSync = new synch_action_synchronizer();
+        
+        $moduleResults = $moduleSync->renameAllFiles($newSetting);
+        $templateResults = $templateSync->renameAllFiles($newSetting);
+        $actionResults = $actionSync->renameAllFiles($newSetting);
+        
+        $totalRenamed = $moduleResults['renamed'] + $templateResults['renamed'] + $actionResults['renamed'];
+        $allErrors = array_merge($moduleResults['errors'], $templateResults['errors'], $actionResults['errors']);
+        
+        // Setting erst nach erfolgreichem Umbenennen ändern
+        $addon->setConfig('descriptive_filenames', $newSetting);
+        
+        if ($totalRenamed > 0) {
+            $message = "Dateinamen umgestellt: $totalRenamed Komponenten umbenannt";
+            if (!empty($allErrors)) {
+                $message .= " (mit " . count($allErrors) . " Fehlern)";
+            }
+        } else {
+            $message = "Dateinamen-Einstellung geändert (keine Dateien zum Umbenennen gefunden)";
+        }
+        
+        if (!empty($allErrors)) {
+            $error = "Einige Fehler beim Umbenennen: " . implode(', ', array_slice($allErrors, 0, 3));
+        }
+    } catch (Exception $e) {
+        $error = "Fehler beim Umbenennen: " . $e->getMessage();
+    }
+}
+
 // Konfiguration speichern
 if (rex_post('save_settings', 'boolean')) {
     $settings = rex_post('settings', [
@@ -16,7 +54,8 @@ if (rex_post('save_settings', 'boolean')) {
         ['key_generation_strategy', 'string'],
         ['update_existing_on_key_conflict', 'boolean'],
         ['sync_frontend', 'boolean'],
-        ['sync_backend', 'boolean']
+        ['sync_backend', 'boolean'],
+        ['descriptive_filenames', 'boolean']
     ]);
     
     // Saubere Ordnernamen sind immer aktiviert - das ist der Zweck des synch Addons
@@ -225,6 +264,40 @@ if ($error) {
                         Sie können sie auch manuell über den "Fortsetzen" Button reaktivieren.
                     </div>
                     <?php endif; ?>
+                    
+                    <hr>
+                    <h4><i class="rex-icon fa-file-text"></i> Dateinamen</h4>
+                    
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" name="settings[descriptive_filenames]" value="1" 
+                                   <?= $addon->getConfig('descriptive_filenames', false) ? 'checked' : '' ?>>
+                            <strong>Sprechende Dateinamen</strong>
+                        </label>
+                        <p class="text-muted">
+                            <strong>Standard:</strong> <code>input.php</code>, <code>output.php</code><br>
+                            <strong>Sprechend:</strong> <code>News Module input.php</code>, <code>News Module output.php</code><br>
+                            Verbessert IDE-Integration (PhpStorm sucht "news module input")
+                        </p>
+                    </div>
+                    
+                    <?php if ($addon->getConfig('descriptive_filenames', false)): ?>
+                    <div class="alert alert-info">
+                        <i class="rex-icon fa-lightbulb-o"></i> <strong>IDE-Tipp:</strong> 
+                        In PhpStorm/VSCode einfach "news module input" eingeben um die Datei zu öffnen, egal wo sie liegt!
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="well well-sm">
+                        <form method="post" style="display: inline-block;">
+                            <button type="submit" name="toggle_descriptive_filenames" value="1" 
+                                    class="btn btn-warning btn-sm">
+                                <i class="rex-icon fa-exchange"></i> 
+                                <?= $addon->getConfig('descriptive_filenames', false) ? 'Zu Standard-Namen' : 'Zu sprechenden Namen' ?>
+                            </button>
+                        </form>
+                        <small class="text-muted">Benennt alle vorhandenen Dateien automatisch um</small>
+                    </div>
                     
                     <hr>
                     <h4><i class="rex-icon fa-shield"></i> Konflikte</h4>

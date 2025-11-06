@@ -33,14 +33,16 @@ class synch_module_synchronizer extends synch_synchronizer
         
         rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
         
-        // input.php
+        // input.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['input'])) {
-            rex_file::put($dir . self::INPUT_FILE, $item['input']);
+            $inputFilename = $this->getInputFilename($item['name']);
+            rex_file::put($dir . $inputFilename, $item['input']);
         }
         
-        // output.php  
+        // output.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['output'])) {
-            rex_file::put($dir . self::OUTPUT_FILE, $item['output']);
+            $outputFilename = $this->getOutputFilename($item['name']);
+            rex_file::put($dir . $outputFilename, $item['output']);
         }
     }
 
@@ -59,14 +61,14 @@ class synch_module_synchronizer extends synch_synchronizer
         $sql->setValue('updatedate', date('Y-m-d H:i:s'));
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
-        // Input/Output aus Dateien lesen
-        $inputFile = $dir . self::INPUT_FILE;
-        if (file_exists($inputFile)) {
+        // Input/Output aus Dateien lesen (beide Formate unterstützen)
+        $inputFile = $this->findInputFile($dir, $metadata['name'] ?? '');
+        if ($inputFile && file_exists($inputFile)) {
             $sql->setValue('input', rex_file::get($inputFile));
         }
         
-        $outputFile = $dir . self::OUTPUT_FILE;
-        if (file_exists($outputFile)) {
+        $outputFile = $this->findOutputFile($dir, $metadata['name'] ?? '');
+        if ($outputFile && file_exists($outputFile)) {
             $sql->setValue('output', rex_file::get($outputFile));
         }
         
@@ -101,14 +103,14 @@ class synch_module_synchronizer extends synch_synchronizer
         $sql->setValue('createuser', rex::getUser()?->getLogin() ?? 'synch');
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
-        // Input/Output aus Dateien lesen
-        $inputFile = $dir . self::INPUT_FILE;
-        if (file_exists($inputFile)) {
+        // Input/Output aus Dateien lesen (beide Formate unterstützen)
+        $inputFile = $this->findInputFile($dir, $metadata['name'] ?? '');
+        if ($inputFile && file_exists($inputFile)) {
             $sql->setValue('input', rex_file::get($inputFile));
         }
         
-        $outputFile = $dir . self::OUTPUT_FILE;
-        if (file_exists($outputFile)) {
+        $outputFile = $this->findOutputFile($dir, $metadata['name'] ?? '');
+        if ($outputFile && file_exists($outputFile)) {
             $sql->setValue('output', rex_file::get($outputFile));
         }
         

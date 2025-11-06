@@ -61,3 +61,9 @@ pause_auto_sync = Auto-Sync pausieren (30min)
 resume_auto_sync = Auto-Sync fortsetzen
 auto_pause_duration = Pause-Dauer: 30 Minuten
 
+# Descriptive Filenames
+descriptive_filenames = Sprechende Dateinamen
+descriptive_filenames_note = Verwendet Modulnamen in Dateinamen für bessere IDE-Integration
+toggle_descriptive_filenames = Dateinamen-Format umstellen
+filenames_renamed = Dateinamen erfolgreich umgestellt
+

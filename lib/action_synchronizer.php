@@ -31,9 +31,10 @@ class synch_action_synchronizer extends synch_synchronizer
         ];
         rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
 
-        // Action PHP-Datei schreiben
+        // Action PHP-Datei schreiben (mit descriptive filename wenn aktiviert)
         $content = $this->generateActionContent($item);
-        rex_file::put($dir . 'action.php', $content);
+        $actionFilename = $this->getActionFilename($item['name']);
+        rex_file::put($dir . $actionFilename, $content);
     }
 
     /**
@@ -41,8 +42,8 @@ class synch_action_synchronizer extends synch_synchronizer
      */
     protected function updateItem(int $id, string $dir, array $metadata): void
     {
-        $actionFile = $dir . 'action.php';
-        if (!file_exists($actionFile)) {
+        $actionFile = $this->findActionFile($dir, $metadata['name'] ?? '');
+        if (!$actionFile || !file_exists($actionFile)) {
             return;
         }
 
@@ -67,8 +68,8 @@ class synch_action_synchronizer extends synch_synchronizer
      */
     protected function createItem(string $dir, array $metadata): void
     {
-        $actionFile = $dir . 'action.php';
-        if (!file_exists($actionFile)) {
+        $actionFile = $this->findActionFile($dir, $metadata['name'] ?? '');
+        if (!$actionFile || !file_exists($actionFile)) {
             return;
         }
 

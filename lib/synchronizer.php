@@ -18,6 +18,118 @@ abstract class synch_synchronizer
     const INPUT_FILE = 'input.php';
     const OUTPUT_FILE = 'output.php';
 
+    /**
+     * Gibt den passenden Dateinamen zurück (abhängig von descriptive_filenames Setting)
+     */
+    protected function getInputFilename(string $name = ''): string
+    {
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
+            return $name . ' input.php';
+        }
+        return self::INPUT_FILE;
+    }
+
+    /**
+     * Gibt den passenden Output-Dateinamen zurück
+     */
+    protected function getOutputFilename(string $name = ''): string
+    {
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
+            return $name . ' output.php';
+        }
+        return self::OUTPUT_FILE;
+    }
+
+    /**
+     * Gibt den passenden Template-Dateinamen zurück
+     */
+    protected function getTemplateFilename(string $name = ''): string
+    {
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
+            return $name . ' template.php';
+        }
+        return 'template.php';
+    }
+
+    /**
+     * Gibt den passenden Action-Dateinamen zurück
+     */
+    protected function getActionFilename(string $name = ''): string
+    {
+        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $name) {
+            return $name . ' action.php';
+        }
+        return 'action.php';
+    }
+
+    /**
+     * Findet Input-Datei (alt oder neues Format)
+     */
+    protected function findInputFile(string $dir, string $name = ''): ?string
+    {
+        $descriptiveFile = $dir . $name . ' input.php';
+        $standardFile = $dir . self::INPUT_FILE;
+        
+        if (file_exists($descriptiveFile)) {
+            return $descriptiveFile;
+        }
+        if (file_exists($standardFile)) {
+            return $standardFile;
+        }
+        return null;
+    }
+
+    /**
+     * Findet Output-Datei (alt oder neues Format)
+     */
+    protected function findOutputFile(string $dir, string $name = ''): ?string
+    {
+        $descriptiveFile = $dir . $name . ' output.php';
+        $standardFile = $dir . self::OUTPUT_FILE;
+        
+        if (file_exists($descriptiveFile)) {
+            return $descriptiveFile;
+        }
+        if (file_exists($standardFile)) {
+            return $standardFile;
+        }
+        return null;
+    }
+
+    /**
+     * Findet Template-Datei (alt oder neues Format)
+     */
+    protected function findTemplateFile(string $dir, string $name = ''): ?string
+    {
+        $descriptiveFile = $dir . $name . ' template.php';
+        $standardFile = $dir . 'template.php';
+        
+        if (file_exists($descriptiveFile)) {
+            return $descriptiveFile;
+        }
+        if (file_exists($standardFile)) {
+            return $standardFile;
+        }
+        return null;
+    }
+
+    /**
+     * Findet Action-Datei (alt oder neues Format)
+     */
+    protected function findActionFile(string $dir, string $name = ''): ?string
+    {
+        $descriptiveFile = $dir . $name . ' action.php';
+        $standardFile = $dir . 'action.php';
+        
+        if (file_exists($descriptiveFile)) {
+            return $descriptiveFile;
+        }
+        if (file_exists($standardFile)) {
+            return $standardFile;
+        }
+        return null;
+    }
+
     public function __construct(string $baseDir, string $tableName, array $columns)
     {
         $this->baseDir = rtrim($baseDir, '/') . '/';
@@ -200,6 +312,77 @@ abstract class synch_synchronizer
         }
         
         return $key;
+    }
+
+    /**
+     * Benennt alle Dateien um (bei Umstellung descriptive_filenames)
+     */
+    public function renameAllFiles(bool $toDescriptive = true): array
+    {
+        $results = ['renamed' => 0, 'errors' => []];
+        
+        if (!is_dir($this->baseDir)) {
+            return $results;
+        }
+        
+        $dirs = scandir($this->baseDir);
+        foreach ($dirs as $dir) {
+            if ($dir === '.' || $dir === '..' || !is_dir($this->baseDir . $dir)) {
+                continue;
+            }
+            
+            $fullDir = $this->baseDir . $dir . '/';
+            $metadataFile = $fullDir . self::METADATA_FILE;
+            
+            if (!file_exists($metadataFile)) {
+                continue;
+            }
+            
+            try {
+                $metadata = rex_file::getConfig($metadataFile);
+                $name = $metadata['name'] ?? $dir;
+                
+                if ($toDescriptive) {
+                    // Von standard zu descriptive
+                    $this->renameFile($fullDir, self::INPUT_FILE, $name . ' input.php');
+                    $this->renameFile($fullDir, self::OUTPUT_FILE, $name . ' output.php');
+                    $this->renameFile($fullDir, 'template.php', $name . ' template.php');
+                    $this->renameFile($fullDir, 'action.php', $name . ' action.php');
+                } else {
+                    // Von descriptive zu standard
+                    $this->renameFile($fullDir, $name . ' input.php', self::INPUT_FILE);
+                    $this->renameFile($fullDir, $name . ' output.php', self::OUTPUT_FILE);
+                    $this->renameFile($fullDir, $name . ' template.php', 'template.php');
+                    $this->renameFile($fullDir, $name . ' action.php', 'action.php');
+                }
+                
+                $results['renamed']++;
+            } catch (Exception $e) {
+                $results['errors'][] = "Fehler bei $dir: " . $e->getMessage();
+            }
+        }
+        
+        return $results;
+    }
+
+    /**
+     * Benennt eine einzelne Datei um
+     */
+    private function renameFile(string $dir, string $oldName, string $newName): bool
+    {
+        $oldPath = $dir . $oldName;
+        $newPath = $dir . $newName;
+        
+        if (!file_exists($oldPath) || $oldPath === $newPath) {
+            return true;
+        }
+        
+        // Ziel-Datei löschen falls vorhanden
+        if (file_exists($newPath)) {
+            unlink($newPath);
+        }
+        
+        return rename($oldPath, $newPath);
     }
 
     /**
