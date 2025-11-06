@@ -271,29 +271,27 @@ if ($error) {
                     <div class="checkbox">
                         <label>
                             <input type="checkbox" name="settings[descriptive_filenames]" value="1" 
-                                   <?= $addon->getConfig('descriptive_filenames', false) ? 'checked' : '' ?>>
-                            <strong>Sprechende Dateinamen</strong>
+                                   <?= $addon->getConfig('descriptive_filenames', true) ? 'checked' : '' ?>>
+                            <strong>Sprechende Dateinamen</strong> <span class="label label-success">Standard</span>
                         </label>
                         <p class="text-muted">
-                            <strong>Standard:</strong> <code>input.php</code>, <code>output.php</code><br>
-                            <strong>Sprechend:</strong> <code>news_module input.php</code>, <code>news_module output.php</code><br>
+                            <strong>Sprechend (Standard):</strong> <code>news_module input.php</code>, <code>news_module output.php</code><br>
+                            <strong>Klassisch:</strong> <code>input.php</code>, <code>output.php</code><br>
                             Verbessert IDE-Integration (PhpStorm sucht "news_module input")
                         </p>
                     </div>
                     
-                    <?php if ($addon->getConfig('descriptive_filenames', false)): ?>
                     <div class="alert alert-info">
                         <i class="rex-icon fa-lightbulb-o"></i> <strong>IDE-Tipp:</strong> 
                         In PhpStorm/VSCode einfach "news_module input" eingeben um die Datei zu öffnen, egal wo sie liegt!
                     </div>
-                    <?php endif; ?>
                     
                     <div class="well well-sm">
                         <form method="post" style="display: inline-block;">
                             <button type="submit" name="toggle_descriptive_filenames" value="1" 
                                     class="btn btn-warning btn-sm">
                                 <i class="rex-icon fa-exchange"></i> 
-                                <?= $addon->getConfig('descriptive_filenames', false) ? 'Zu Standard-Namen' : 'Zu sprechenden Namen' ?>
+                                <?= $addon->getConfig('descriptive_filenames', true) ? 'Zu klassischen Namen' : 'Zu sprechenden Namen' ?>
                             </button>
                         </form>
                         <small class="text-muted">Benennt alle vorhandenen Dateien automatisch um</small>
@@ -371,6 +369,12 @@ if ($error) {
                         <span class="text-success">
                             <i class="rex-icon fa-dashboard"></i> 
                             Change-Detection (60s Cache)
+                        </span>
+                    </li>
+                    <li>
+                        <span class="text-<?= $addon->getConfig('descriptive_filenames', true) ? 'success' : 'muted' ?>">
+                            <i class="rex-icon fa-<?= $addon->getConfig('descriptive_filenames', true) ? 'check' : 'times' ?>"></i> 
+                            <?= $addon->getConfig('descriptive_filenames', true) ? 'Sprechende Dateinamen' : 'Klassische Dateinamen' ?>
                         </span>
                     </li>
                     <li>
