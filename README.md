@@ -1,4 +1,4 @@
-# Synch - Moderne Key-basierte Synchronisation für REDAXO
+# Synch [sìŋk] - Moderne Key-basierte Synchronisation für REDAXO
 
 Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen Dateisystem und Datenbank.
 
