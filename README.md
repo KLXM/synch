@@ -1,6 +1,7 @@
 # Synch [sìŋk] - Moderne Key-basierte Synchronisation für REDAXO
 
 Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen Dateisystem und Datenbank.
+Synch ist eine Alternative zum Developer AddOn. Es verwendet anstelle der IDs der Module, Templates und Mudul-Acrions die Keys. So können sie überer mehrere Websites hinweg übergreifend genutzt werden. 
 
 ## Features
 
