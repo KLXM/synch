@@ -21,8 +21,9 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Dateinamen zurück (abhängig von descriptive_filenames Setting)
      */
-    protected function getInputFilename(string $key = ''): string
+    protected function getInputFilename(?string $key = ''): string
     {
+        $key = $key ?? '';
         if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
             return $key . ' input.php';
         }
@@ -32,8 +33,9 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Output-Dateinamen zurück
      */
-    protected function getOutputFilename(string $key = ''): string
+    protected function getOutputFilename(?string $key = ''): string
     {
+        $key = $key ?? '';
         if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
             return $key . ' output.php';
         }
@@ -43,8 +45,9 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Template-Dateinamen zurück
      */
-    protected function getTemplateFilename(string $key = ''): string
+    protected function getTemplateFilename(?string $key = ''): string
     {
+        $key = $key ?? '';
         if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
             return $key . ' template.php';
         }
@@ -54,8 +57,9 @@ abstract class synch_synchronizer
     /**
      * Gibt den passenden Action-Dateinamen zurück
      */
-    protected function getActionFilename(string $key = ''): string
+    protected function getActionFilename(?string $key = ''): string
     {
+        $key = $key ?? '';
         if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
             return $key . ' action.php';
         }
@@ -63,14 +67,33 @@ abstract class synch_synchronizer
     }
 
     /**
+     * Findet Input-Datei (alt oder neues Format)
+     */
+    protected function findInputFile(string $dir, ?string $key = ''): ?string
+    {
+        $key = $key ?? '';
+        $descriptiveFile = $dir . $key . ' input.php';
+        $standardFile = $dir . self::INPUT_FILE;
+        
+        if ($key && file_exists($descriptiveFile)) {
+            return $descriptiveFile;
+        }
+        if (file_exists($standardFile)) {
+            return $standardFile;
+        }
+        return null;
+    }
+
+    /**
      * Findet Output-Datei (alt oder neues Format)
      */
-    protected function findOutputFile(string $dir, string $key = ''): ?string
+    protected function findOutputFile(string $dir, ?string $key = ''): ?string
     {
+        $key = $key ?? '';
         $descriptiveFile = $dir . $key . ' output.php';
         $standardFile = $dir . self::OUTPUT_FILE;
         
-        if (file_exists($descriptiveFile)) {
+        if ($key && file_exists($descriptiveFile)) {
             return $descriptiveFile;
         }
         if (file_exists($standardFile)) {
@@ -82,12 +105,13 @@ abstract class synch_synchronizer
     /**
      * Findet Template-Datei (alt oder neues Format)
      */
-    protected function findTemplateFile(string $dir, string $key = ''): ?string
+    protected function findTemplateFile(string $dir, ?string $key = ''): ?string
     {
+        $key = $key ?? '';
         $descriptiveFile = $dir . $key . ' template.php';
         $standardFile = $dir . 'template.php';
         
-        if (file_exists($descriptiveFile)) {
+        if ($key && file_exists($descriptiveFile)) {
             return $descriptiveFile;
         }
         if (file_exists($standardFile)) {
@@ -99,12 +123,13 @@ abstract class synch_synchronizer
     /**
      * Findet Action-Datei (alt oder neues Format)
      */
-    protected function findActionFile(string $dir, string $key = ''): ?string
+    protected function findActionFile(string $dir, ?string $key = ''): ?string
     {
+        $key = $key ?? '';
         $descriptiveFile = $dir . $key . ' action.php';
         $standardFile = $dir . 'action.php';
         
-        if (file_exists($descriptiveFile)) {
+        if ($key && file_exists($descriptiveFile)) {
             return $descriptiveFile;
         }
         if (file_exists($standardFile)) {
