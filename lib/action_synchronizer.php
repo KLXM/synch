@@ -1,15 +1,21 @@
 <?php
 
+namespace KLXM\Synch;
+
+use rex;
+use rex_sql;
+use rex_file;
+
 /**
  * Action Synchronizer für das Synch AddOn
  * Synchronisiert Actions zwischen Dateisystem und Datenbank basierend auf Keys
  */
-class synch_action_synchronizer extends synch_synchronizer
+class ActionSynchronizer extends Synchronizer
 {
     public function __construct()
     {
         parent::__construct(
-            synch_manager::getActionsPath(),
+            Manager::getActionsPath(),
             'rex_action',
             ['key', 'name', 'preview', 'presave', 'postsave']
         );
@@ -33,7 +39,7 @@ class synch_action_synchronizer extends synch_synchronizer
 
         // Action PHP-Datei schreiben (mit descriptive filename wenn aktiviert)
         $content = $this->generateActionContent($item);
-        $actionFilename = $this->getActionFilename($item['key']);
+        $actionFilename = $this->getActionFilename($item['key'] ?? '');
         rex_file::put($dir . $actionFilename, $content);
     }
 

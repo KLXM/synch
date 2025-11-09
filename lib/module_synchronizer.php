@@ -1,13 +1,21 @@
 <?php
 
+namespace KLXM\Synch;
+
+use rex;
+use rex_sql;
+use rex_file;
+use rex_addon;
+use Exception;
+
 /**
  * Synchronizer für Module
  */
-class synch_module_synchronizer extends synch_synchronizer
+class ModuleSynchronizer extends Synchronizer
 {
     public function __construct()
     {
-        $baseDir = synch_manager::getModulesPath();
+        $baseDir = Manager::getModulesPath();
         
         parent::__construct(
             $baseDir,
@@ -35,13 +43,13 @@ class synch_module_synchronizer extends synch_synchronizer
         
         // input.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['input'])) {
-            $inputFilename = $this->getInputFilename($item['key']);
+            $inputFilename = $this->getInputFilename($item['key'] ?? '');
             rex_file::put($dir . $inputFilename, $item['input']);
         }
         
         // output.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['output'])) {
-            $outputFilename = $this->getOutputFilename($item['key']);
+            $outputFilename = $this->getOutputFilename($item['key'] ?? '');
             rex_file::put($dir . $outputFilename, $item['output']);
         }
     }
@@ -62,12 +70,12 @@ class synch_module_synchronizer extends synch_synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Input/Output aus Dateien lesen (beide Formate unterstützen)
-        $inputFile = $this->findInputFile($dir, $metadata['key'] ?? '');
+        $inputFile = $this->findInputFile($dir . '/', $metadata['key'] ?? '');
         if ($inputFile && file_exists($inputFile)) {
             $sql->setValue('input', rex_file::get($inputFile));
         }
         
-        $outputFile = $this->findOutputFile($dir, $metadata['key'] ?? '');
+        $outputFile = $this->findOutputFile($dir . '/', $metadata['key'] ?? '');
         if ($outputFile && file_exists($outputFile)) {
             $sql->setValue('output', rex_file::get($outputFile));
         }
@@ -104,7 +112,7 @@ class synch_module_synchronizer extends synch_synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Input/Output aus Dateien lesen (beide Formate unterstützen - Key als Prefix)
-        $inputFile = $this->findInputFile($dir, $key);
+        $inputFile = $this->findInputFile($dir . '/', $key);
         if ($inputFile && file_exists($inputFile)) {
             $sql->setValue('input', rex_file::get($inputFile));
         }
@@ -122,4 +130,6 @@ class synch_module_synchronizer extends synch_synchronizer
             rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
         }
     }
+
+
 }

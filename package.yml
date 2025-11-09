@@ -24,4 +24,4 @@ default_config:
     descriptive_filenames: true
 
 console_commands:
-    synch:sync: synch_sync_command
+    synch:sync: KLXM\Synch\SyncCommand

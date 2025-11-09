@@ -1,15 +1,23 @@
 <?php
 
+namespace KLXM\Synch;
+
+use rex;
+use rex_sql;
+use rex_file;
+use rex_addon;
+use Exception;
+
 /**
  * Synchronizer für Templates
  */
-class synch_template_synchronizer extends synch_synchronizer
+class TemplateSynchronizer extends Synchronizer
 {
     const TEMPLATE_FILE = 'template.php';
     
     public function __construct()
     {
-        $baseDir = synch_manager::getTemplatesPath();
+        $baseDir = Manager::getTemplatesPath();
         
         parent::__construct(
             $baseDir,
@@ -38,7 +46,7 @@ class synch_template_synchronizer extends synch_synchronizer
         
                 // template.php (mit descriptive filename wenn aktiviert)
         if (!empty($item['content'])) {
-            $templateFilename = $this->getTemplateFilename($item['key']);
+            $templateFilename = $this->getTemplateFilename($item['key'] ?? '');
             rex_file::put($dir . $templateFilename, $item['content']);
         }
     }

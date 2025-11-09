@@ -1,9 +1,18 @@
 <?php
 
+namespace KLXM\Synch;
+
+use rex_path;
+use rex_dir;
+use rex_addon;
+use rex_sql;
+use rex;
+use Exception;
+
 /**
  * Synch Manager für Pfadverwaltung
  */
-class synch_manager
+class Manager
 {
     private static $basePath;
 
@@ -192,15 +201,15 @@ class synch_manager
     {
         try {
             // Module synchronisieren
-            $moduleSync = new synch_module_synchronizer();
+            $moduleSync = new ModuleSynchronizer();
             $moduleSync->sync();
             
             // Templates synchronisieren
-            $templateSync = new synch_template_synchronizer();
+            $templateSync = new TemplateSynchronizer();
             $templateSync->sync();
 
             // Actions synchronisieren
-            $actionSync = new synch_action_synchronizer();
+            $actionSync = new ActionSynchronizer();
             $actionSync->sync();
             
             // Timestamp der letzten Synchronisation speichern

@@ -1,12 +1,21 @@
 <?php
 
+namespace KLXM\Synch;
+
+use rex_dir;
+use rex_addon;
+use rex_file;
+use rex_sql;
+use rex;
+use Exception;
+
 /**
  * Moderne Key-basierte Synchronisation für Module und Templates
  * 
  * Diese Klasse implementiert eine saubere, key-basierte Synchronisation
  * ohne die Legacy ID-basierten Probleme des developer Addons.
  */
-abstract class synch_synchronizer
+abstract class Synchronizer
 {
     protected string $baseDir;
     protected string $tableName;
@@ -60,6 +69,23 @@ abstract class synch_synchronizer
             return $key . ' action.php';
         }
         return 'action.php';
+    }
+
+    /**
+     * Findet Input-Datei (alt oder neues Format)
+     */
+    protected function findInputFile(string $dir, string $key = ''): ?string
+    {
+        $descriptiveFile = $dir . $key . ' input.php';
+        $standardFile = $dir . self::INPUT_FILE;
+        
+        if (file_exists($descriptiveFile)) {
+            return $descriptiveFile;
+        }
+        if (file_exists($standardFile)) {
+            return $standardFile;
+        }
+        return null;
     }
 
     /**

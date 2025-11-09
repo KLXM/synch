@@ -1,13 +1,17 @@
 <?php
 
+namespace KLXM\Synch;
+
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use rex_console_command;
+use Exception;
 
 /**
  * Console Command für die Synchronisation
  */
-class synch_sync_command extends rex_console_command
+class SyncCommand extends rex_console_command
 {
     protected function configure(): void
     {
@@ -62,7 +66,7 @@ class synch_sync_command extends rex_console_command
                 $output->writeln('<info>Synchronisiere Module...</info>');
                 
                 if (!$dryRun) {
-                    $moduleSync = new synch_module_synchronizer();
+                    $moduleSync = new ModuleSynchronizer();
                     $moduleSync->sync();
                 }
                 
@@ -74,7 +78,7 @@ class synch_sync_command extends rex_console_command
                 $output->writeln('<info>Synchronisiere Templates...</info>');
                 
                 if (!$dryRun) {
-                    $templateSync = new synch_template_synchronizer();
+                    $templateSync = new TemplateSynchronizer();
                     $templateSync->sync();
                 }
                 
@@ -86,7 +90,7 @@ class synch_sync_command extends rex_console_command
                 $output->writeln('<info>Synchronisiere Actions...</info>');
                 
                 if (!$dryRun) {
-                    $actionSync = new synch_action_synchronizer();
+                    $actionSync = new ActionSynchronizer();
                     $actionSync->sync();
                 }
                 

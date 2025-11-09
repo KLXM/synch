@@ -4,6 +4,11 @@
  * Settings-Seite für das Synch Addon - Moderne Panel-Struktur
  */
 
+use KLXM\Synch\Manager;
+use KLXM\Synch\ModuleSynchronizer;
+use KLXM\Synch\TemplateSynchronizer;
+use KLXM\Synch\ActionSynchronizer;
+
 $addon = rex_addon::get('synch');
 
 $message = '';
@@ -16,9 +21,9 @@ if (rex_post('toggle_descriptive_filenames', 'boolean')) {
     
     try {
         // Alle Synchronizer durchgehen und Dateien umbenennen
-        $moduleSync = new synch_module_synchronizer();
-        $templateSync = new synch_template_synchronizer();
-        $actionSync = new synch_action_synchronizer();
+        $moduleSync = new ModuleSynchronizer();
+        $templateSync = new TemplateSynchronizer();
+        $actionSync = new ActionSynchronizer();
         
         $moduleResults = $moduleSync->renameAllFiles($newSetting);
         $templateResults = $templateSync->renameAllFiles($newSetting);
@@ -67,12 +72,12 @@ if (rex_post('save_settings', 'boolean')) {
 
 // Auto-Sync pausieren/fortsetzen
 if (rex_post('pause_auto_sync', 'boolean')) {
-    synch_manager::pauseAutoSync();
+    Manager::pauseAutoSync();
     $message = $addon->i18n('auto_sync_paused', 'Auto-Sync pausiert');
 }
 
 if (rex_post('resume_auto_sync', 'boolean')) {
-    synch_manager::resumeAutoSync();
+    Manager::resumeAutoSync();
     $message = $addon->i18n('auto_sync_resumed', 'Auto-Sync fortgesetzt');
 }
 
@@ -80,15 +85,15 @@ if (rex_post('resume_auto_sync', 'boolean')) {
 if (rex_post('run_sync', 'boolean')) {
     try {
         // Module synchronisieren
-        $moduleSync = new synch_module_synchronizer();
+        $moduleSync = new ModuleSynchronizer();
         $moduleSync->sync();
         
         // Templates synchronisieren
-        $templateSync = new synch_template_synchronizer();
+        $templateSync = new TemplateSynchronizer();
         $templateSync->sync();
         
         // Actions synchronisieren
-        $actionSync = new synch_action_synchronizer();
+        $actionSync = new ActionSynchronizer();
         $actionSync->sync();
         
         $message = $addon->i18n('sync_success');
@@ -105,9 +110,9 @@ $actionCount = rex_sql::factory()->getArray('SELECT COUNT(*) as count FROM ' . r
 $moduleFiles = 0;
 $templateFiles = 0;
 $actionFiles = 0;
-$moduleDataPath = synch_manager::getModulesPath();
-$templateDataPath = synch_manager::getTemplatesPath();
-$actionDataPath = synch_manager::getActionsPath();
+$moduleDataPath = Manager::getModulesPath();
+$templateDataPath = Manager::getTemplatesPath();
+$actionDataPath = Manager::getActionsPath();
 
 if (is_dir($moduleDataPath)) {
     $moduleFiles = count(array_filter(scandir($moduleDataPath), function($item) use ($moduleDataPath) {
@@ -154,7 +159,7 @@ if ($error) {
                     </button>
                 </form>
                 
-                <?php if (synch_manager::isAutoSyncPaused()): ?>
+                <?php if (Manager::isAutoSyncPaused()): ?>
                 <form method="post" style="display: inline-block; margin-left: 10px;">
                     <button type="submit" name="resume_auto_sync" value="1" class="btn btn-success">
                         <i class="rex-icon fa-play"></i> Auto-Sync fortsetzen
@@ -252,7 +257,7 @@ if ($error) {
                         Synchronisation erfolgt nur bei tatsächlichen Updates!
                     </div>
                     
-                    <?php if (synch_manager::isAutoSyncPaused()): ?>
+                    <?php if (Manager::isAutoSyncPaused()): ?>
                     <?php
                     $pausedAt = $addon->getConfig('auto_sync_paused_at', 0);
                     $resumeTime = $pausedAt + (30 * 60); // 30 Minuten später
@@ -379,7 +384,7 @@ if ($error) {
                     </li>
                     <li>
                         <?php 
-                        $isPaused = synch_manager::isAutoSyncPaused();
+                        $isPaused = Manager::isAutoSyncPaused();
                         $pausedAt = $addon->getConfig('auto_sync_paused_at');
                         ?>
                         <span class="text-<?= $isPaused ? 'warning' : 'success' ?>">

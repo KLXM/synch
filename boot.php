@@ -8,6 +8,8 @@
  * des developer Addons.
  */
 
+use KLXM\Synch\Manager;
+
 // Console-Modus überspringen
 if (method_exists('rex', 'getConsole') && rex::getConsole()) {
     return;
@@ -24,8 +26,8 @@ if (
         // Nur für Admins ausführen (wie Developer Addon)
         if (rex::isDebugMode() || (rex::getUser() && rex::getUser()->isAdmin())) {
             // Change Detection - nur synchronisieren wenn sich etwas geändert hat
-            if (synch_manager::hasChanges()) {
-                synch_manager::start();
+            if (Manager::hasChanges()) {
+                Manager::start();
             }
         }
     });
