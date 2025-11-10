@@ -72,13 +72,15 @@ if (rex_post('save_settings', 'boolean')) {
 
 // Auto-Sync pausieren/fortsetzen
 if (rex_post('pause_auto_sync', 'boolean')) {
-    Manager::pauseAutoSync();
-    $message = $addon->i18n('auto_sync_paused', 'Auto-Sync pausiert');
+    rex_addon::get('synch')->setConfig('auto_sync_paused', true);
+    rex_addon::get('synch')->setConfig('auto_sync_paused_at', time());
+    $message = 'Auto-Sync pausiert';
 }
 
 if (rex_post('resume_auto_sync', 'boolean')) {
-    Manager::resumeAutoSync();
-    $message = $addon->i18n('auto_sync_resumed', 'Auto-Sync fortgesetzt');
+    rex_addon::get('synch')->setConfig('auto_sync_paused', false);
+    rex_addon::get('synch')->removeConfig('auto_sync_paused_at');
+    $message = 'Auto-Sync fortgesetzt';
 }
 
 // Synchronisation ausführen
@@ -159,7 +161,7 @@ if ($error) {
                     </button>
                 </form>
                 
-                <?php if (Manager::isAutoSyncPaused()): ?>
+                <?php if ($addon->getConfig('auto_sync_paused', false)): ?>
                 <form method="post" style="display: inline-block; margin-left: 10px;">
                     <button type="submit" name="resume_auto_sync" value="1" class="btn btn-success">
                         <i class="rex-icon fa-play"></i> Auto-Sync fortsetzen
@@ -257,7 +259,7 @@ if ($error) {
                         Synchronisation erfolgt nur bei tatsächlichen Updates!
                     </div>
                     
-                    <?php if (Manager::isAutoSyncPaused()): ?>
+                    <?php if ($addon->getConfig('auto_sync_paused', false)): ?>
                     <?php
                     $pausedAt = $addon->getConfig('auto_sync_paused_at', 0);
                     $resumeTime = $pausedAt + (30 * 60); // 30 Minuten später
@@ -384,7 +386,7 @@ if ($error) {
                     </li>
                     <li>
                         <?php 
-                        $isPaused = Manager::isAutoSyncPaused();
+                        $isPaused = $addon->getConfig('auto_sync_paused', false);
                         $pausedAt = $addon->getConfig('auto_sync_paused_at');
                         ?>
                         <span class="text-<?= $isPaused ? 'warning' : 'success' ?>">

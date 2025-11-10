@@ -27,9 +27,23 @@ $addon = rex_addon::get('synch');
 $syncBackend = $addon->getConfig('sync_backend', false);  // Default: false
 $syncFrontend = $addon->getConfig('sync_frontend', false); // Default: false
 
+// Auto-Sync pausiert?
+$isPaused = $addon->getConfig('auto_sync_paused', false);
+
+// Automatische Pause nach 30 Minuten aufheben
+if ($isPaused) {
+    $pausedAt = $addon->getConfig('auto_sync_paused_at', 0);
+    if ($pausedAt && (time() - $pausedAt) > 30 * 60) { // 30 Minuten
+        $addon->setConfig('auto_sync_paused', false);
+        $addon->removeConfig('auto_sync_paused_at');
+        $isPaused = false;
+    }
+}
+
 if (
-    (!rex::isBackend() && $syncFrontend) ||
-    (rex::getUser() && rex::isBackend() && $syncBackend)
+    !$isPaused && // Nicht pausiert
+    ((!rex::isBackend() && $syncFrontend) ||
+    (rex::getUser() && rex::isBackend() && $syncBackend))
 ) {
     rex_extension::register('PACKAGES_INCLUDED', function () use ($addon) {
         // Nur für Admins ausführen (wie Developer Addon)
