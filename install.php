@@ -7,6 +7,11 @@
 
 $sql = rex_sql::factory();
 
+// Automatische Synchronisation während Installation deaktivieren
+$addon = rex_addon::get('synch');
+$originalSyncBackend = $addon->getConfig('sync_backend', false);
+$addon->setConfig('sync_backend', false);
+
 /**
  * Hilfsfunktion zum Generieren eines sauberen Keys
  */
@@ -179,3 +184,9 @@ try {
 } catch (Exception $e) {
     echo rex_view::error('Fehler beim Erweitern der Action-Tabelle: ' . $e->getMessage());
 }
+
+// Ursprüngliche Synchronisations-Einstellung wiederherstellen
+$addon->setConfig('sync_backend', $originalSyncBackend);
+
+// Installation erfolgreich abgeschlossen
+echo rex_view::success('Synch Addon erfolgreich installiert. Alle Tabellen wurden um Key-Spalten erweitert und bestehende Einträge haben automatisch Keys erhalten.');

@@ -15,6 +15,11 @@ if (method_exists('rex', 'getConsole') && rex::getConsole()) {
     return;
 }
 
+// Während Installation/Deinstallation nicht synchronisieren
+if (rex::isSetup() || rex::isBackend() && rex_get('function') === 'install') {
+    return;
+}
+
 // Automatische Synchronisation basierend auf Einstellungen
 $addon = rex_addon::get('synch');
 
