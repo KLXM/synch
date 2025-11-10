@@ -157,11 +157,11 @@ abstract class Synchronizer
     public function sync(): bool
     {
         try {
-            // Von Datenbank zu Dateisystem
-            $this->syncFromDatabase();
-            
-            // Von Dateisystem zu Datenbank 
+            // ERSTE: Von Dateisystem zu Datenbank (neue Module aus Dateien importieren)
             $this->syncToDatabase();
+            
+            // ZWEITE: Von Datenbank zu Dateisystem (sicherstellen dass alle DB-Items Dateien haben)
+            $this->syncFromDatabase();
             
             return true;
         } catch (Exception $e) {
@@ -252,17 +252,37 @@ abstract class Synchronizer
                 $metadata = rex_file::getConfig($metadataFile);
                 $key = $metadata['key'] ?? $dir;
                 
-                // Prüfen ob Item bereits existiert
+                // WICHTIG: Prüfen ob Item bereits existiert
                 $existingItem = $this->findItemByKey($key);
                 
                 if ($existingItem && isset($existingItem['id'])) {
-                    // Existierendes Item aktualisieren
+                    // Item existiert bereits - NUR updaten wenn explizit erwünscht
+                    // und Dateien neuer sind als DB-Eintrag
                     if (rex_addon::get('synch')->getConfig('update_existing_on_key_conflict', true)) {
-                        $this->updateItem((int)$existingItem['id'], $itemDir, $metadata);
+                        
+                        $dbUpdateTime = strtotime($existingItem['updatedate'] ?? '1970-01-01');
+                        $fileUpdateTime = $this->getDirectoryUpdateTime($itemDir);
+                        
+                        // Nur updaten wenn Dateien tatsächlich neuer sind
+                        if ($fileUpdateTime > $dbUpdateTime + 5) { // 5 Sekunden Toleranz
+                            $this->updateItem((int)$existingItem['id'], $itemDir, $metadata);
+                        }
                     }
                 } else {
-                    // Neues Item erstellen
-                    $this->createItem($itemDir, $metadata);
+                    // Item existiert NICHT - aber prüfe auch nach Namen um Duplikate zu vermeiden
+                    $nameBasedItem = null;
+                    if (!empty($metadata['name'])) {
+                        $nameBasedItem = $this->findItemByName($metadata['name']);
+                    }
+                    
+                    if (!$nameBasedItem) {
+                        // Wirklich neu - kann erstellt werden
+                        $this->createItem($itemDir, $metadata);
+                    } else {
+                        // Item mit gleichem Namen existiert bereits
+                        // Logge das als Info, aber erstelle kein Duplikat
+                        error_log('SYNCH INFO: Skipping creation of "' . ($metadata['name'] ?? $key) . '" - item with same name already exists');
+                    }
                 }
                 
             } catch (Exception $e) {
@@ -433,6 +453,50 @@ abstract class Synchronizer
         );
         
         return $sql->getRows() > 0 ? $sql->getRow() : null;
+    }
+
+    /**
+     * Findet ein Item anhand des Namens
+     */
+    protected function findItemByName(string $name): ?array
+    {
+        $sql = rex_sql::factory();
+        $sql->setQuery(
+            'SELECT * FROM ' . $sql->escapeIdentifier($this->tableName) . ' WHERE ' . 
+            $sql->escapeIdentifier($this->nameColumn) . ' = ?',
+            [$name]
+        );
+        
+        return $sql->getRows() > 0 ? $sql->getRow() : null;
+    }
+
+    /**
+     * Ermittelt die neueste Änderungszeit eines Verzeichnisses
+     */
+    protected function getDirectoryUpdateTime(string $dir): int
+    {
+        if (!is_dir($dir)) {
+            return 0;
+        }
+        
+        $latestTime = filemtime($dir);
+        $files = scandir($dir);
+        
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            
+            $filePath = $dir . $file;
+            if (is_file($filePath)) {
+                $fileTime = filemtime($filePath);
+                if ($fileTime > $latestTime) {
+                    $latestTime = $fileTime;
+                }
+            }
+        }
+        
+        return $latestTime;
     }
 
     /**
