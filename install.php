@@ -186,7 +186,11 @@ try {
 }
 
 // Ursprüngliche Synchronisations-Einstellung wiederherstellen
-$addon->setConfig('sync_backend', $originalSyncBackend);
+// WICHTIG: Per Default ist die automatische Synchronisation DEAKTIVIERT
+// Der Benutzer muss sie explizit in den Einstellungen aktivieren
+$addon->setConfig('sync_backend', false);  // Explizit deaktiviert lassen
+$addon->setConfig('sync_frontend', false); // Explizit deaktiviert lassen
 
 // Installation erfolgreich abgeschlossen
 echo rex_view::success('Synch Addon erfolgreich installiert. Alle Tabellen wurden um Key-Spalten erweitert und bestehende Einträge haben automatisch Keys erhalten.');
+echo rex_view::info('<strong>Hinweis:</strong> Die automatische Synchronisation ist standardmäßig <strong>deaktiviert</strong>. Sie können sie in den Addon-Einstellungen aktivieren.');

@@ -20,12 +20,16 @@ if (rex::isSetup() || rex::isBackend() && rex_get('function') === 'install') {
     return;
 }
 
-// Automatische Synchronisation basierend auf Einstellungen
+// Automatische Synchronisation nur wenn explizit aktiviert
 $addon = rex_addon::get('synch');
 
+// Synchronisation ist standardmäßig DEAKTIVIERT - muss explizit aktiviert werden
+$syncBackend = $addon->getConfig('sync_backend', false);  // Default: false
+$syncFrontend = $addon->getConfig('sync_frontend', false); // Default: false
+
 if (
-    !rex::isBackend() && $addon->getConfig('sync_frontend') ||
-    rex::getUser() && rex::isBackend() && $addon->getConfig('sync_backend')
+    (!rex::isBackend() && $syncFrontend) ||
+    (rex::getUser() && rex::isBackend() && $syncBackend)
 ) {
     rex_extension::register('PACKAGES_INCLUDED', function () use ($addon) {
         // Nur für Admins ausführen (wie Developer Addon)

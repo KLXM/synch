@@ -245,7 +245,7 @@ if ($error) {
                     <div class="checkbox">
                         <label>
                             <input type="checkbox" name="settings[sync_backend]" value="1" 
-                                   <?= $addon->getConfig('sync_backend', true) ? 'checked' : '' ?>>
+                                   <?= $addon->getConfig('sync_backend', false) ? 'checked' : '' ?>>
                             <strong><?= $addon->i18n('sync_backend', 'Im Backend synchronisieren') ?></strong>
                         </label>
                         <p class="text-muted"><?= $addon->i18n('sync_backend_note', 'Nur wenn als Admin eingeloggt') ?></p>
@@ -365,8 +365,8 @@ if ($error) {
                         </span>
                     </li>
                     <li>
-                        <span class="text-<?= $addon->getConfig('sync_backend', true) ? 'success' : 'muted' ?>">
-                            <i class="rex-icon fa-<?= $addon->getConfig('sync_backend', true) ? 'check' : 'times' ?>"></i> 
+                        <span class="text-<?= $addon->getConfig('sync_backend', false) ? 'success' : 'muted' ?>">
+                            <i class="rex-icon fa-<?= $addon->getConfig('sync_backend', false) ? 'check' : 'times' ?>"></i> 
                             Backend-Sync
                         </span>
                     </li>
