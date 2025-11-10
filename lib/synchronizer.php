@@ -183,10 +183,17 @@ abstract class Synchronizer
             $key = $item[$this->keyColumn] ?? null;
             $name = $item[$this->nameColumn] ?? 'Unnamed';
             
-            // Key generieren falls nicht vorhanden
-            if (empty($key)) {
+            // Key generieren falls nicht vorhanden oder leer
+            if (empty($key) || trim($key) === '') {
                 $key = $this->generateKey($name);
                 $this->updateItemKey($item['id'], $key);
+                // Item neu laden nach Key-Update
+                $updatedSql = rex_sql::factory();
+                $updatedSql->setQuery('SELECT * FROM ' . $updatedSql->escapeIdentifier($this->tableName) . ' WHERE id = ?', [$item['id']]);
+                if ($updatedSql->getRows() > 0) {
+                    $item = $updatedSql->getRow();
+                    $key = $item[$this->keyColumn];
+                }
             }
             
             // Sauberer Ordnername basierend auf Key
@@ -310,12 +317,19 @@ abstract class Synchronizer
     /**
      * Stellt sicher dass ein Key eindeutig ist
      */
-    protected function ensureUniqueKey(string $baseKey): string
+    protected function ensureUniqueKey(string $baseKey, int $excludeId = null): string
     {
         $key = $baseKey;
         $counter = 1;
         
-        while ($this->findItemByKey($key)) {
+        while (true) {
+            $existingItem = $this->findItemByKey($key);
+            
+            // Key ist frei oder gehört zum ausgeschlossenen Item
+            if (!$existingItem || ($excludeId && $existingItem['id'] == $excludeId)) {
+                break;
+            }
+            
             $key = $baseKey . '_' . $counter;
             $counter++;
         }
@@ -416,7 +430,7 @@ abstract class Synchronizer
      */
     protected function updateItemKey(int $id, string $key): void
     {
-        $key = $this->ensureUniqueKey($key);
+        $key = $this->ensureUniqueKey($key, $id);
         
         $sql = rex_sql::factory();
         $sql->setTable($this->tableName);

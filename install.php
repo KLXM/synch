@@ -36,13 +36,22 @@ function generateCleanKey(string $name): string {
 /**
  * Hilfsfunktion um eindeutigen Key zu generieren
  */
-function ensureUniqueKey(string $baseKey, string $table, string $keyColumn): string {
+function ensureUniqueKey(string $baseKey, string $table, string $keyColumn, int $excludeId = null): string {
     global $sql;
     $key = $baseKey;
     $counter = 1;
     
     while (true) {
-        $sql->setQuery('SELECT COUNT(*) as count FROM ' . $table . ' WHERE ' . $keyColumn . ' = ?', [$key]);
+        $whereClause = $keyColumn . ' = ?';
+        $params = [$key];
+        
+        // Aktuelles Item ausschließen
+        if ($excludeId) {
+            $whereClause .= ' AND id != ?';
+            $params[] = $excludeId;
+        }
+        
+        $sql->setQuery('SELECT COUNT(*) as count FROM ' . $table . ' WHERE ' . $whereClause, $params);
         if ($sql->getValue('count') == 0) {
             break;
         }
@@ -79,7 +88,7 @@ try {
             $name = $sql->getValue('name') ?: 'module_' . $id;
             
             $baseKey = generateCleanKey($name);
-            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('module'), 'key');
+            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('module'), 'key', $id);
             
             $updateSql = rex_sql::factory();
             $updateSql->setTable(rex::getTable('module'));
@@ -123,7 +132,7 @@ try {
             $name = $sql->getValue('name') ?: 'template_' . $id;
             
             $baseKey = generateCleanKey($name);
-            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('template'), 'key');
+            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('template'), 'key', $id);
             
             $updateSql = rex_sql::factory();
             $updateSql->setTable(rex::getTable('template'));
@@ -167,7 +176,7 @@ try {
             $name = $sql->getValue('name') ?: 'action_' . $id;
             
             $baseKey = generateCleanKey($name);
-            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('action'), 'key');
+            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('action'), 'key', $id);
             
             $updateSql = rex_sql::factory();
             $updateSql->setTable(rex::getTable('action'));
