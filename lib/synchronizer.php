@@ -185,19 +185,19 @@ abstract class Synchronizer
             
             // Key generieren falls nicht vorhanden oder leer
             if (empty($key) || trim($key) === '') {
-                $key = $this->generateKey($name);
+                $key = $this->generateKey($name ?: 'unnamed_item');
                 $this->updateItemKey($item['id'], $key);
                 // Item neu laden nach Key-Update
                 $updatedSql = rex_sql::factory();
                 $updatedSql->setQuery('SELECT * FROM ' . $updatedSql->escapeIdentifier($this->tableName) . ' WHERE id = ?', [$item['id']]);
                 if ($updatedSql->getRows() > 0) {
                     $item = $updatedSql->getRow();
-                    $key = $item[$this->keyColumn];
+                    $key = $item[$this->keyColumn] ?? 'fallback_key';
                 }
             }
             
             // Sauberer Ordnername basierend auf Key
-            $dirName = $this->cleanKey($key);
+            $dirName = $this->cleanKey($key ?? '');
             $itemDir = $this->baseDir . $dirName . '/';
             
             // Verzeichnis erstellen
@@ -274,8 +274,13 @@ abstract class Synchronizer
     /**
      * Generiert einen sauberen Key aus einem Namen
      */
-    protected function generateKey(string $name): string
+    protected function generateKey(string $name = ''): string
     {
+        // Fallback für leeren Namen
+        if (empty($name) || trim($name) === '') {
+            $name = 'unnamed_item_' . time();
+        }
+        
         $strategy = rex_addon::get('synch')->getConfig('key_generation_strategy', 'name_based');
         
         switch ($strategy) {
@@ -295,8 +300,13 @@ abstract class Synchronizer
     /**
      * Bereinigt einen String für die Verwendung als Key/Ordnername
      */
-    protected function cleanKey(string $input): string
+    protected function cleanKey(string $input = ''): string
     {
+        // Null/Empty handling
+        if (empty($input)) {
+            return 'unnamed_item';
+        }
+        
         // Umlaute ersetzen
         $input = str_replace(['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'], 
                            ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'], $input);
