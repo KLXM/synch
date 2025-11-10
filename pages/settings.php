@@ -52,22 +52,30 @@ if (rex_post('toggle_descriptive_filenames', 'boolean')) {
     }
 }
 
-// Konfiguration speichern
-if (rex_post('save_settings', 'boolean')) {
-    $settings = rex_post('settings', [
-        ['auto_generate_keys', 'boolean'],
-        ['key_generation_strategy', 'string'],
-        ['update_existing_on_key_conflict', 'boolean'],
-        ['sync_frontend', 'boolean'],
-        ['sync_backend', 'boolean'],
-        ['descriptive_filenames', 'boolean']
-    ]);
-    
-    // Saubere Ordnernamen sind immer aktiviert - das ist der Zweck des synch Addons
-    $settings['clean_folders'] = true;
-    
-    $addon->setConfig($settings);
-    $message = $addon->i18n('config_saved');
+// Konfiguration speichern - Key-Generierung
+if (rex_post('save_key_settings', 'boolean')) {
+    $addon->setConfig('auto_generate_keys', rex_post('auto_generate_keys', 'boolean', false));
+    $addon->setConfig('key_generation_strategy', rex_post('key_generation_strategy', 'string', 'name_based'));
+    $message = 'Key-Generierung Einstellungen gespeichert';
+}
+
+// Konfiguration speichern - Automatische Synchronisation
+if (rex_post('save_sync_settings', 'boolean')) {
+    $addon->setConfig('sync_frontend', rex_post('sync_frontend', 'boolean', false));
+    $addon->setConfig('sync_backend', rex_post('sync_backend', 'boolean', false));
+    $message = 'Automatische Synchronisation Einstellungen gespeichert';
+}
+
+// Konfiguration speichern - Dateinamen
+if (rex_post('save_filename_settings', 'boolean')) {
+    $addon->setConfig('descriptive_filenames', rex_post('descriptive_filenames', 'boolean', false));
+    $message = 'Dateinamen Einstellungen gespeichert';
+}
+
+// Konfiguration speichern - Konflikte
+if (rex_post('save_conflict_settings', 'boolean')) {
+    $addon->setConfig('update_existing_on_key_conflict', rex_post('update_existing_on_key_conflict', 'boolean', false));
+    $message = 'Konflikt Einstellungen gespeichert';
 }
 
 // Auto-Sync pausieren/fortsetzen
@@ -194,50 +202,55 @@ if ($error) {
             </div>
         </div>
 
-        <!-- Einstellungen -->
+        <!-- Key-Generierung -->
         <div class="panel panel-default">
             <div class="panel-heading">
-                <h3 class="panel-title"><i class="rex-icon fa-cog"></i> <?= $addon->i18n('settings_title') ?></h3>
+                <h3 class="panel-title"><i class="rex-icon fa-key"></i> Key-Generierung</h3>
             </div>
             <div class="panel-body">
                 <form method="post">
-                    
-
-                    <h4><i class="rex-icon fa-key"></i> Key-Generierung</h4>
-                    
                     <div class="checkbox">
                         <label>
-                            <input type="checkbox" name="settings[auto_generate_keys]" value="1" 
+                            <input type="checkbox" name="auto_generate_keys" value="1" 
                                    <?= $addon->getConfig('auto_generate_keys', true) ? 'checked' : '' ?>>
-                            <strong><?= $addon->i18n('auto_generate_keys') ?></strong>
+                            <strong><?= $addon->i18n('auto_generate_keys', 'Automatische Key-Generierung') ?></strong>
                         </label>
-                        <p class="text-muted"><?= $addon->i18n('auto_generate_keys_note') ?></p>
+                        <p class="text-muted"><?= $addon->i18n('auto_generate_keys_note', 'Generiert automatisch Keys für neue Module/Templates/Actions') ?></p>
                     </div>
                     
                     <div class="form-group">
-                        <label for="key-strategy"><?= $addon->i18n('key_generation_strategy') ?>:</label>
-                        <select class="form-control" id="key-strategy" name="settings[key_generation_strategy]">
+                        <label for="key-strategy"><?= $addon->i18n('key_generation_strategy', 'Key-Generierung Strategie') ?>:</label>
+                        <select class="form-control" id="key-strategy" name="key_generation_strategy">
                             <option value="name_based" <?= $addon->getConfig('key_generation_strategy', 'name_based') === 'name_based' ? 'selected' : '' ?>>
-                                <?= $addon->i18n('strategy_name_based') ?>
+                                Namens-basiert (z.B. "news_module")
                             </option>
                             <option value="date_name" <?= $addon->getConfig('key_generation_strategy', 'name_based') === 'date_name' ? 'selected' : '' ?>>
-                                <?= $addon->i18n('strategy_date_name') ?>
+                                Datum + Name (z.B. "20241110_news_module")
                             </option>
                             <option value="hash_based" <?= $addon->getConfig('key_generation_strategy', 'name_based') === 'hash_based' ? 'selected' : '' ?>>
-                                <?= $addon->i18n('strategy_hash_based') ?>
+                                Hash-basiert (z.B. "a1b2c3d4_news_module")
                             </option>
                         </select>
-                        <small class="text-muted"><?= $addon->i18n('key_generation_strategy_note') ?></small>
+                        <small class="text-muted">Legt fest, wie Keys für neue Items generiert werden</small>
                     </div>
                     
+                    <button type="submit" name="save_key_settings" value="1" class="btn btn-success">
+                        <i class="rex-icon fa-save"></i> Key-Einstellungen speichern
+                    </button>
+                </form>
+            </div>
+        </div>
 
-                    
-                    <hr>
-                    <h4><i class="rex-icon fa-refresh"></i> Automatische Synchronisation</h4>
-                    
+        <!-- Automatische Synchronisation -->
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="rex-icon fa-refresh"></i> Automatische Synchronisation</h3>
+            </div>
+            <div class="panel-body">
+                <form method="post">
                     <div class="checkbox">
                         <label>
-                            <input type="checkbox" name="settings[sync_frontend]" value="1" 
+                            <input type="checkbox" name="sync_frontend" value="1" 
                                    <?= $addon->getConfig('sync_frontend', false) ? 'checked' : '' ?>>
                             <strong><?= $addon->i18n('sync_frontend', 'Im Frontend synchronisieren') ?></strong>
                         </label>
@@ -246,7 +259,7 @@ if ($error) {
                     
                     <div class="checkbox">
                         <label>
-                            <input type="checkbox" name="settings[sync_backend]" value="1" 
+                            <input type="checkbox" name="sync_backend" value="1" 
                                    <?= $addon->getConfig('sync_backend', false) ? 'checked' : '' ?>>
                             <strong><?= $addon->i18n('sync_backend', 'Im Backend synchronisieren') ?></strong>
                         </label>
@@ -272,12 +285,23 @@ if ($error) {
                     </div>
                     <?php endif; ?>
                     
-                    <hr>
-                    <h4><i class="rex-icon fa-file-text"></i> Dateinamen</h4>
-                    
+                    <button type="submit" name="save_sync_settings" value="1" class="btn btn-success">
+                        <i class="rex-icon fa-save"></i> Sync-Einstellungen speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dateinamen -->
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="rex-icon fa-file-text"></i> Dateinamen</h3>
+            </div>
+            <div class="panel-body">
+                <form method="post">
                     <div class="checkbox">
                         <label>
-                            <input type="checkbox" name="settings[descriptive_filenames]" value="1" 
+                            <input type="checkbox" name="descriptive_filenames" value="1" 
                                    <?= $addon->getConfig('descriptive_filenames', true) ? 'checked' : '' ?>>
                             <strong>Sprechende Dateinamen</strong> <span class="label label-success">Standard</span>
                         </label>
@@ -293,31 +317,45 @@ if ($error) {
                         In PhpStorm/VSCode einfach "news_module input" eingeben um die Datei zu öffnen, egal wo sie liegt!
                     </div>
                     
-                    <div class="well well-sm">
-                        <form method="post" style="display: inline-block;">
-                            <button type="submit" name="toggle_descriptive_filenames" value="1" 
-                                    class="btn btn-warning btn-sm">
-                                <i class="rex-icon fa-exchange"></i> 
-                                <?= $addon->getConfig('descriptive_filenames', true) ? 'Zu klassischen Namen' : 'Zu sprechenden Namen' ?>
-                            </button>
-                        </form>
-                        <small class="text-muted">Benennt alle vorhandenen Dateien automatisch um</small>
-                    </div>
-                    
-                    <hr>
-                    <h4><i class="rex-icon fa-shield"></i> Konflikte</h4>
-                    
+                    <button type="submit" name="save_filename_settings" value="1" class="btn btn-success">
+                        <i class="rex-icon fa-save"></i> Dateinamen-Einstellungen speichern
+                    </button>
+                </form>
+                
+                <hr>
+                
+                <div class="well well-sm">
+                    <h5>Sofort alle Dateien umbenennen</h5>
+                    <form method="post" style="display: inline-block;">
+                        <button type="submit" name="toggle_descriptive_filenames" value="1" 
+                                class="btn btn-warning btn-sm">
+                            <i class="rex-icon fa-exchange"></i> 
+                            <?= $addon->getConfig('descriptive_filenames', true) ? 'Zu klassischen Namen' : 'Zu sprechenden Namen' ?>
+                        </button>
+                    </form>
+                    <small class="text-muted">Benennt alle vorhandenen Dateien automatisch um</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Konflikte -->
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title"><i class="rex-icon fa-shield"></i> Konflikte</h3>
+            </div>
+            <div class="panel-body">
+                <form method="post">
                     <div class="checkbox">
                         <label>
-                            <input type="checkbox" name="settings[update_existing_on_key_conflict]" value="1" 
+                            <input type="checkbox" name="update_existing_on_key_conflict" value="1" 
                                    <?= $addon->getConfig('update_existing_on_key_conflict', true) ? 'checked' : '' ?>>
-                            <strong><?= $addon->i18n('update_existing_on_key_conflict') ?></strong>
+                            <strong><?= $addon->i18n('update_existing_on_key_conflict', 'Bestehende Items bei Key-Konflikten aktualisieren') ?></strong>
                         </label>
-                        <p class="text-muted"><?= $addon->i18n('update_existing_on_key_conflict_note') ?></p>
+                        <p class="text-muted"><?= $addon->i18n('update_existing_on_key_conflict_note', 'Wenn ein Item mit gleichem Key existiert, wird es mit Datei-Inhalten überschrieben') ?></p>
                     </div>
                     
-                    <button type="submit" name="save_settings" value="1" class="btn btn-success">
-                        <i class="rex-icon fa-save"></i> <?= $addon->i18n('save_settings') ?>
+                    <button type="submit" name="save_conflict_settings" value="1" class="btn btn-success">
+                        <i class="rex-icon fa-save"></i> Konflikt-Einstellungen speichern
                     </button>
                 </form>
             </div>
