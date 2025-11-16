@@ -5,156 +5,136 @@ namespace KLXM\Synch;
 use rex;
 use rex_sql;
 use rex_file;
+use Exception;
 
 /**
- * Action Synchronizer für das Synch AddOn
- * Synchronisiert Actions zwischen Dateisystem und Datenbank basierend auf Keys
+ * Synchronizer für Actions
+ * 
+ * METADATA.YML FORMAT:
+ * ===================
+ * # Pflichtfelder:
+ * name: "Meine Action"           # Name der Action
+ * key: "meine_action"            # Eindeutiger Key
+ * 
+ * # Optionale Felder:
+ * preview: ""                    # Preview-Code (YAML String)
+ * presave: ""                    # Presave-Code (YAML String)
+ * postsave: ""                   # Postsave-Code (YAML String)
+ * previewmode: 1                 # Preview-Modus
+ * status: 1                      # Status
+ * createdate: "2024-01-01 12:00:00"
+ * updatedate: "2024-01-15 14:30:00"
+ * createuser: "admin"
+ * updateuser: "admin"
+ * 
+ * DATEIEN:
+ * ========
+ * - metadata.yml                 # Metadaten
+ * - {key} action.php             # Action-Code (optional, wird in metadata.yml gespeichert)
+ * 
+ * HINWEIS: Actions haben typischerweise keinen separaten Code in Dateien.
+ * Der Code wird in den Metadata-Feldern preview/presave/postsave gespeichert.
+ * 
+ * WORKFLOW: Siehe ModuleSynchronizer
  */
 class ActionSynchronizer extends Synchronizer
 {
     public function __construct()
     {
-        parent::__construct(
-            Manager::getActionsPath(),
-            'rex_action',
-            ['key', 'name', 'preview', 'presave', 'postsave']
-        );
+        parent::__construct('actions', rex::getTable('action'));
     }
 
     /**
-     * Schreibt Action-Dateien ins Dateisystem
+     * Schreibt die Action-Dateien ins Dateisystem
      */
     protected function writeItemFiles(string $dir, array $item): void
     {
-        // Metadata schreiben
+        $key = $item['key'];
+        
+        // metadata.yml (Actions speichern den Code in metadata, nicht in separaten Dateien)
         $metadata = [
-            'key' => $item['key'],
-            'name' => $item['name'],
-            'createdate' => $item['createdate'],
-            'updatedate' => $item['updatedate'],
-            'createuser' => $item['createuser'],
-            'updateuser' => $item['updateuser']
+            'name' => $item['name'] ?? 'Unnamed Action',
+            'key' => $key,
+            'preview' => $item['preview'] ?? '',
+            'presave' => $item['presave'] ?? '',
+            'postsave' => $item['postsave'] ?? '',
+            'previewmode' => $item['previewmode'] ?? 1,
+            'status' => $item['status'] ?? 1,
+            'createdate' => $item['createdate'] ?? date('Y-m-d H:i:s'),
+            'updatedate' => $item['updatedate'] ?? date('Y-m-d H:i:s'),
+            'createuser' => $item['createuser'] ?? '',
+            'updateuser' => $item['updateuser'] ?? '',
         ];
+        
         rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
-
-        // Action PHP-Datei schreiben (mit descriptive filename wenn aktiviert)
-        $content = $this->generateActionContent($item);
-        $actionFilename = $this->getActionFilename($item['key'] ?? '');
-        rex_file::put($dir . $actionFilename, $content);
     }
 
     /**
-     * Aktualisiert eine Action in der Datenbank
+     * Aktualisiert eine existierende Action in der DB
      */
     protected function updateItem(int $id, string $dir, array $metadata): void
     {
-        $actionFile = $this->findActionFile($dir, $metadata['key'] ?? '');
-        if (!$actionFile || !file_exists($actionFile)) {
-            return;
-        }
-
-        $data = $this->parseActionFile($actionFile);
+        $key = $metadata['key'];
         
         $sql = rex_sql::factory();
-        $sql->setTable($this->tableName);
+        $sql->setTable(rex::getTable('action'));
         $sql->setWhere(['id' => $id]);
         
-        $sql->setValue('name', $metadata['name'] ?? $metadata['key']);
-        $sql->setValue('preview', $data['preview'] ?? '');
-        $sql->setValue('presave', $data['presave'] ?? '');
-        $sql->setValue('postsave', $data['postsave'] ?? '');
+        // Basis-Felder
+        $sql->setValue('name', $metadata['name'] ?? 'Unnamed Action');
+        $sql->setValue('key', $key);
+        $sql->setValue('preview', $metadata['preview'] ?? '');
+        $sql->setValue('presave', $metadata['presave'] ?? '');
+        $sql->setValue('postsave', $metadata['postsave'] ?? '');
+        $sql->setValue('previewmode', $metadata['previewmode'] ?? 1);
+        $sql->setValue('status', $metadata['status'] ?? 1);
         $sql->setValue('updatedate', date('Y-m-d H:i:s'));
-        $sql->setValue('updateuser', rex::getUser() ? rex::getUser()->getLogin() : 'synch');
+        $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         $sql->update();
+        
+        // Metadata aktualisieren
+        $metadata['updatedate'] = date('Y-m-d H:i:s');
+        rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
     }
 
     /**
-     * Erstellt eine neue Action in der Datenbank
+     * Erstellt eine neue Action in der DB
      */
     protected function createItem(string $dir, array $metadata): void
     {
-        $actionFile = $this->findActionFile($dir, $metadata['key'] ?? '');
-        if (!$actionFile || !file_exists($actionFile)) {
-            return;
+        $key = $metadata['key'] ?? '';
+        
+        // Key generieren falls leer
+        if (empty($key)) {
+            $key = $this->generateKey($metadata['name'] ?? 'unnamed_action');
+            $key = $this->ensureUniqueKey($key);
         }
-
-        $data = $this->parseActionFile($actionFile);
-        $key = $metadata['key'];  // Verwende den Key direkt aus metadata
         
         $sql = rex_sql::factory();
-        $sql->setTable($this->tableName);
+        $sql->setTable(rex::getTable('action'));
         
+        // Basis-Felder (KEINE ID -> AUTO_INCREMENT!)
+        $sql->setValue('name', $metadata['name'] ?? 'Unnamed Action');
         $sql->setValue('key', $key);
-        $sql->setValue('name', $metadata['name'] ?? $key);
-        $sql->setValue('preview', $data['preview'] ?? '');
-        $sql->setValue('presave', $data['presave'] ?? '');
-        $sql->setValue('postsave', $data['postsave'] ?? '');
+        $sql->setValue('preview', $metadata['preview'] ?? '');
+        $sql->setValue('presave', $metadata['presave'] ?? '');
+        $sql->setValue('postsave', $metadata['postsave'] ?? '');
+        $sql->setValue('previewmode', $metadata['previewmode'] ?? 1);
+        $sql->setValue('status', $metadata['status'] ?? 1);
         $sql->setValue('createdate', date('Y-m-d H:i:s'));
         $sql->setValue('updatedate', date('Y-m-d H:i:s'));
-        $sql->setValue('createuser', rex::getUser() ? rex::getUser()->getLogin() : 'synch');
-        $sql->setValue('updateuser', rex::getUser() ? rex::getUser()->getLogin() : 'synch');
-        $sql->setValue('revision', 0);
+        $sql->setValue('createuser', rex::getUser()?->getLogin() ?? 'synch');
+        $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         $sql->insert();
-    }
-
-    /**
-     * Generiert den Action-PHP-Content
-     */
-    private function generateActionContent(array $item): string
-    {
-        $content = "<?php\n\n";
-        $content .= "/**\n";
-        $content .= " * " . ($item['name'] ?? 'Unbenannte Action') . "\n";
-        $content .= " * Key: " . ($item['key'] ?? '') . "\n";
-        $content .= " */\n\n";
         
-        if (!empty($item['preview'])) {
-            $content .= "// === PREVIEW ===\n";
-            $content .= $item['preview'] . "\n\n";
+        // Metadata mit generiertem Key aktualisieren
+        if ($key !== $metadata['key']) {
+            $metadata['key'] = $key;
+            $metadata['createdate'] = date('Y-m-d H:i:s');
+            $metadata['updatedate'] = date('Y-m-d H:i:s');
+            rex_file::putConfig($dir . self::METADATA_FILE, $metadata);
         }
-        
-        if (!empty($item['presave'])) {
-            $content .= "// === PRESAVE ===\n";
-            $content .= $item['presave'] . "\n\n";
-        }
-        
-        if (!empty($item['postsave'])) {
-            $content .= "// === POSTSAVE ===\n";
-            $content .= $item['postsave'] . "\n\n";
-        }
-        
-        return $content;
-    }
-
-    /**
-     * Parst eine Action-PHP-Datei
-     */
-    private function parseActionFile(string $filePath): array
-    {
-        $content = rex_file::get($filePath);
-        if (!$content) {
-            return [];
-        }
-
-        $data = [];
-        
-        // Preview Code extrahieren
-        if (preg_match('/\/\/ === PREVIEW ===\s*\n(.*?)(?=\/\/ === |$)/s', $content, $matches)) {
-            $data['preview'] = trim($matches[1]);
-        }
-        
-        // Presave Code extrahieren  
-        if (preg_match('/\/\/ === PRESAVE ===\s*\n(.*?)(?=\/\/ === |$)/s', $content, $matches)) {
-            $data['presave'] = trim($matches[1]);
-        }
-        
-        // Postsave Code extrahieren
-        if (preg_match('/\/\/ === POSTSAVE ===\s*\n(.*?)(?=\/\/ === |$)/s', $content, $matches)) {
-            $data['postsave'] = trim($matches[1]);
-        }
-        
-        return $data;
     }
 }

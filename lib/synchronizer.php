@@ -6,144 +6,49 @@ use rex_dir;
 use rex_addon;
 use rex_file;
 use rex_sql;
+use rex_path;
 use rex;
 use Exception;
 
 /**
- * Moderne Key-basierte Synchronisation für Module und Templates
+ * Key-basierte Synchronisation für Module, Templates und Actions
  * 
- * Diese Klasse implementiert eine saubere, key-basierte Synchronisation
- * ohne die Legacy ID-basierten Probleme des developer Addons.
+ * Inspiriert vom developer Addon, aber mit Keys statt IDs.
+ * Bidirektionale Synchronisation basierend auf Zeitstempeln.
+ * 
+ * WORKFLOW:
+ * =========
+ * 1. Neues Item im Dateisystem anlegen (Ordner + metadata.yml + input.php + output.php)
+ *    -> wird in DB importiert (AUTO_INCREMENT ID)
+ * 
+ * 2. Item in DB ändern
+ *    -> Dateien werden aktualisiert (wenn DB neuer als Dateien)
+ * 
+ * 3. Dateien ändern
+ *    -> DB wird aktualisiert (wenn Dateien neuer als DB)
+ * 
+ * 4. Item in DB löschen
+ *    -> Dateien werden gelöscht
+ * 
+ * 5. Dateien löschen
+ *    -> Item bleibt in DB (wird beim nächsten Sync wieder angelegt)
+ *    -> Um Item komplett zu löschen: In DB löschen!
  */
 abstract class Synchronizer
 {
     protected string $baseDir;
     protected string $tableName;
-    protected array $columns;
     protected string $keyColumn = 'key';
     protected string $nameColumn = 'name';
+    protected string $dirname;
     
     const METADATA_FILE = 'metadata.yml';
-    const INPUT_FILE = 'input.php';
-    const OUTPUT_FILE = 'output.php';
 
-    /**
-     * Gibt den passenden Dateinamen zurück (abhängig von descriptive_filenames Setting)
-     */
-    protected function getInputFilename(string $key = ''): string
+    public function __construct(string $dirname, string $tableName)
     {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
-            return $key . ' input.php';
-        }
-        return self::INPUT_FILE;
-    }
-
-    /**
-     * Gibt den passenden Output-Dateinamen zurück
-     */
-    protected function getOutputFilename(string $key = ''): string
-    {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
-            return $key . ' output.php';
-        }
-        return self::OUTPUT_FILE;
-    }
-
-    /**
-     * Gibt den passenden Template-Dateinamen zurück
-     */
-    protected function getTemplateFilename(string $key = ''): string
-    {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
-            return $key . ' template.php';
-        }
-        return 'template.php';
-    }
-
-    /**
-     * Gibt den passenden Action-Dateinamen zurück
-     */
-    protected function getActionFilename(string $key = ''): string
-    {
-        if (rex_addon::get('synch')->getConfig('descriptive_filenames', false) && $key) {
-            return $key . ' action.php';
-        }
-        return 'action.php';
-    }
-
-    /**
-     * Findet Input-Datei (alt oder neues Format)
-     */
-    protected function findInputFile(string $dir, string $key = ''): ?string
-    {
-        $descriptiveFile = $dir . $key . ' input.php';
-        $standardFile = $dir . self::INPUT_FILE;
-        
-        if (file_exists($descriptiveFile)) {
-            return $descriptiveFile;
-        }
-        if (file_exists($standardFile)) {
-            return $standardFile;
-        }
-        return null;
-    }
-
-    /**
-     * Findet Output-Datei (alt oder neues Format)
-     */
-    protected function findOutputFile(string $dir, string $key = ''): ?string
-    {
-        $descriptiveFile = $dir . $key . ' output.php';
-        $standardFile = $dir . self::OUTPUT_FILE;
-        
-        if (file_exists($descriptiveFile)) {
-            return $descriptiveFile;
-        }
-        if (file_exists($standardFile)) {
-            return $standardFile;
-        }
-        return null;
-    }
-
-    /**
-     * Findet Template-Datei (alt oder neues Format)
-     */
-    protected function findTemplateFile(string $dir, string $key = ''): ?string
-    {
-        $descriptiveFile = $dir . $key . ' template.php';
-        $standardFile = $dir . 'template.php';
-        
-        if (file_exists($descriptiveFile)) {
-            return $descriptiveFile;
-        }
-        if (file_exists($standardFile)) {
-            return $standardFile;
-        }
-        return null;
-    }
-
-    /**
-     * Findet Action-Datei (alt oder neues Format)
-     */
-    protected function findActionFile(string $dir, string $key = ''): ?string
-    {
-        $descriptiveFile = $dir . $key . ' action.php';
-        $standardFile = $dir . 'action.php';
-        
-        if (file_exists($descriptiveFile)) {
-            return $descriptiveFile;
-        }
-        if (file_exists($standardFile)) {
-            return $standardFile;
-        }
-        return null;
-    }
-
-    public function __construct(string $baseDir, string $tableName, array $columns)
-    {
-        $this->baseDir = rtrim($baseDir, '/') . '/';
+        $this->dirname = $dirname;
         $this->tableName = $tableName;
-        $this->columns = $columns;
+        $this->baseDir = rex_path::addonData('synch', $dirname . '/');
         
         // Sicherstellen dass Base-Directory existiert
         if (!is_dir($this->baseDir)) {
@@ -153,140 +58,226 @@ abstract class Synchronizer
 
     /**
      * Hauptsynchronisations-Methode
+     * Bidirektionale Sync: DB <-> Dateisystem
+     * Respektiert sync_direction Setting
      */
     public function sync(): bool
     {
         try {
-            // ERSTE: Von Dateisystem zu Datenbank (neue Module aus Dateien importieren)
-            $this->syncToDatabase();
+            $syncDirection = rex_addon::get('synch')->getConfig('sync_direction', 'bidirectional');
             
-            // ZWEITE: Von Datenbank zu Dateisystem (sicherstellen dass alle DB-Items Dateien haben)
-            $this->syncFromDatabase();
+            // 1. Existierende Items aus DB holen und ihre Keys tracken
+            $dbItems = $this->getItemsFromDatabase();
+            $dbKeys = [];
+            
+            // 2. Existierende Verzeichnisse scannen
+            $fsItems = $this->getItemsFromFilesystem();
+            
+            // 3. DB Items mit Dateisystem synchronisieren (nur wenn nicht files_to_db)
+            if ($syncDirection !== 'files_to_db') {
+                foreach ($dbItems as $item) {
+                    $key = $item[$this->keyColumn] ?? null;
+                    
+                    // Key fehlt? -> generieren
+                    if (empty($key)) {
+                        $name = $item[$this->nameColumn] ?? 'unnamed';
+                        $key = $this->generateKey($name);
+                        $key = $this->ensureUniqueKey($key);
+                        $this->updateItemKey($item['id'], $key);
+                        $item[$this->keyColumn] = $key;
+                    }
+                    
+                    $dbKeys[] = $key;
+                    $this->syncItemToFilesystem($item, $fsItems);
+                }
+            } else {
+                // files_to_db mode: nur Keys sammeln, keine DB→Files Sync
+                foreach ($dbItems as $item) {
+                    $key = $item[$this->keyColumn] ?? null;
+                    if (!empty($key)) {
+                        $dbKeys[] = $key;
+                    }
+                }
+            }
+            
+            // 4. Dateisystem Items zur DB hinzufügen (nur wenn nicht db_to_files)
+            if ($syncDirection !== 'db_to_files') {
+                foreach ($fsItems as $key => $dirPath) {
+                    if (!in_array($key, $dbKeys)) {
+                        $this->syncItemToDatabase($key, $dirPath);
+                    }
+                }
+            }
+            
+            // 5. Cleanup-Logik je nach Sync-Richtung
+            if ($syncDirection === 'files_to_db' || $syncDirection === 'bidirectional') {
+                // files_to_db oder bidirectional: Gelöschte Dateien → aus DB löschen
+                $this->cleanupDeletedItemsFromDatabase(array_keys($fsItems));
+            }
+            
+            if ($syncDirection === 'db_to_files' || $syncDirection === 'bidirectional') {
+                // db_to_files oder bidirectional: Gelöschte DB Items → Dateien löschen
+                $this->cleanupDeletedItems($dbKeys, $fsItems);
+            }
             
             return true;
         } catch (Exception $e) {
-            // Fehler loggen ohne rex_logger da das Probleme macht
             error_log('SYNCH ERROR: ' . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Synchronisiert Items aus der Datenbank ins Dateisystem
+     * Holt alle Items aus der Datenbank
      */
-    protected function syncFromDatabase(): void
+    protected function getItemsFromDatabase(): array
     {
         $sql = rex_sql::factory();
-        $sql->setQuery('SELECT * FROM ' . $sql->escapeIdentifier($this->tableName));
+        $sql->setQuery('SELECT * FROM ' . $sql->escapeIdentifier($this->tableName) . ' ORDER BY id');
+        return $sql->getArray();
+    }
+
+    /**
+     * Scannt Dateisystem nach Item-Verzeichnissen
+     * Return: ['key' => '/full/path/to/dir/', ...]
+     */
+    protected function getItemsFromFilesystem(): array
+    {
+        $items = [];
         
-        foreach ($sql->getArray() as $item) {
-            $key = $item[$this->keyColumn] ?? null;
-            $name = $item[$this->nameColumn] ?? 'Unnamed';
+        if (!is_dir($this->baseDir)) {
+            return $items;
+        }
+        
+        $dirs = scandir($this->baseDir);
+        foreach ($dirs as $dir) {
+            if ($dir === '.' || $dir === '..') {
+                continue;
+            }
             
-            // Key generieren falls nicht vorhanden oder leer
-            if (empty($key) || trim($key) === '') {
-                $key = $this->generateKey($name ?: 'unnamed_item');
-                $this->updateItemKey($item['id'], $key);
-                // Item neu laden nach Key-Update
-                $updatedSql = rex_sql::factory();
-                $updatedSql->setQuery('SELECT * FROM ' . $updatedSql->escapeIdentifier($this->tableName) . ' WHERE id = ?', [$item['id']]);
-                if ($updatedSql->getRows() > 0) {
-                    $item = $updatedSql->getRow();
-                    $key = $item[$this->keyColumn] ?? 'fallback_key';
+            $fullPath = $this->baseDir . $dir . '/';
+            if (!is_dir($fullPath)) {
+                continue;
+            }
+            
+            $metadataFile = $fullPath . self::METADATA_FILE;
+            if (file_exists($metadataFile)) {
+                $metadata = rex_file::getConfig($metadataFile);
+                $key = $metadata['key'] ?? $dir;
+                $items[$key] = $fullPath;
+            }
+        }
+        
+        return $items;
+    }
+
+    /**
+     * Synchronisiert ein DB-Item ins Dateisystem
+     * Vergleicht Zeitstempel und aktualisiert nur wenn DB neuer ist
+     */
+    protected function syncItemToFilesystem(array $item, array &$fsItems): void
+    {
+        $key = $item[$this->keyColumn];
+        $dirName = $this->cleanKey($key);
+        $dirPath = $this->baseDir . $dirName . '/';
+        
+        // Verzeichnis existiert noch nicht -> erstellen und Dateien schreiben
+        if (!is_dir($dirPath)) {
+            rex_dir::create($dirPath);
+            $this->writeItemFiles($dirPath, $item);
+            $fsItems[$key] = $dirPath; // Zum Tracking hinzufügen
+            return;
+        }
+        
+        // Verzeichnis existiert -> Zeitstempel vergleichen
+        $metadataFile = $dirPath . self::METADATA_FILE;
+        if (!file_exists($metadataFile)) {
+            // Metadata fehlt -> neu schreiben
+            $this->writeItemFiles($dirPath, $item);
+            return;
+        }
+        
+        $metadata = rex_file::getConfig($metadataFile);
+        $dbTime = strtotime($item['updatedate'] ?? '1970-01-01 00:00:00');
+        $fsTime = strtotime($metadata['updatedate'] ?? '1970-01-01 00:00:00');
+        
+        // DB ist neuer -> Dateien überschreiben
+        if ($dbTime > $fsTime) {
+            $this->writeItemFiles($dirPath, $item);
+        }
+        // Dateisystem ist neuer -> DB aktualisieren
+        else if ($fsTime > $dbTime + 5) { // 5 Sek Toleranz
+            $this->updateItem((int)$item['id'], $dirPath, $metadata);
+        }
+    }
+
+    /**
+     * Synchronisiert ein Dateisystem-Item zur DB
+     * Wird nur für NEUE Items aufgerufen (nicht in DB vorhanden)
+     */
+    protected function syncItemToDatabase(string $key, string $dirPath): void
+    {
+        $metadataFile = $dirPath . self::METADATA_FILE;
+        
+        if (!file_exists($metadataFile)) {
+            return;
+        }
+        
+        try {
+            $metadata = rex_file::getConfig($metadataFile);
+            
+            // Prüfe ob Item mit gleichem Namen existiert (um Duplikate zu vermeiden)
+            if (!empty($metadata['name'])) {
+                $existingItem = $this->findItemByName($metadata['name']);
+                if ($existingItem) {
+                    error_log('SYNCH INFO: Skipping "' . $metadata['name'] . '" - item with same name exists');
+                    return;
                 }
             }
             
-            // Sauberer Ordnername basierend auf Key
-            $dirName = $this->cleanKey($key ?? '');
-            $itemDir = $this->baseDir . $dirName . '/';
+            // Item erstellen (verwendet AUTO_INCREMENT für ID)
+            $this->createItem($dirPath, $metadata);
             
-            // Verzeichnis erstellen
-            if (!is_dir($itemDir)) {
-                rex_dir::create($itemDir);
-                // Dateien schreiben nur bei neuem Verzeichnis oder wenn sich etwas geändert hat
-                $this->writeItemFiles($itemDir, $item);
-            } else {
-                // Prüfe ob sich das Item geändert hat
-                $metadataFile = $itemDir . self::METADATA_FILE;
-                if (file_exists($metadataFile)) {
-                    $existingMetadata = rex_file::getConfig($metadataFile);
-                    $itemUpdateTime = strtotime($item['updatedate'] ?? '1970-01-01');
-                    $fileUpdateTime = strtotime($existingMetadata['updatedate'] ?? '1970-01-01');
-                    
-                    // Nur schreiben wenn das DB-Item neuer ist
-                    if ($itemUpdateTime > $fileUpdateTime) {
-                        $this->writeItemFiles($itemDir, $item);
-                    }
-                } else {
-                    // Metadata fehlt - neu schreiben
-                    $this->writeItemFiles($itemDir, $item);
+        } catch (Exception $e) {
+            error_log('SYNCH ERROR creating item from ' . $dirPath . ': ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Löscht Verzeichnisse für Items die nicht mehr in DB existieren
+     */
+    protected function cleanupDeletedItems(array $dbKeys, array $fsItems): void
+    {
+        foreach ($fsItems as $key => $dirPath) {
+            if (!in_array($key, $dbKeys)) {
+                // Item existiert nicht mehr in DB -> Verzeichnis löschen
+                if (is_dir($dirPath)) {
+                    rex_dir::delete($dirPath);
+                    error_log('SYNCH: Deleted directory for removed item: ' . $key);
                 }
             }
         }
     }
 
     /**
-     * Synchronisiert Items aus dem Dateisystem in die Datenbank
+     * Löscht DB Items die nicht mehr im Dateisystem existieren
+     * Für files_to_db und bidirectional Mode
      */
-    protected function syncToDatabase(): void
+    protected function cleanupDeletedItemsFromDatabase(array $fsKeys): void
     {
-        if (!is_dir($this->baseDir)) {
-            return;
-        }
+        $dbItems = $this->getItemsFromDatabase();
         
-        $dirs = scandir($this->baseDir);
-        foreach ($dirs as $dir) {
-            if ($dir === '.' || $dir === '..' || !is_dir($this->baseDir . $dir)) {
-                continue;
+        foreach ($dbItems as $item) {
+            $key = $item[$this->keyColumn] ?? null;
+            
+            if (empty($key)) {
+                continue; // Items ohne Key überspringen
             }
             
-            $itemDir = $this->baseDir . $dir . '/';
-            $metadataFile = $itemDir . self::METADATA_FILE;
-            
-            // Nur Verzeichnisse mit metadata.yml verarbeiten
-            if (!file_exists($metadataFile)) {
-                continue;
-            }
-            
-            try {
-                $metadata = rex_file::getConfig($metadataFile);
-                $key = $metadata['key'] ?? $dir;
-                
-                // WICHTIG: Prüfen ob Item bereits existiert
-                $existingItem = $this->findItemByKey($key);
-                
-                if ($existingItem && isset($existingItem['id'])) {
-                    // Item existiert bereits - NUR updaten wenn explizit erwünscht
-                    // und Dateien neuer sind als DB-Eintrag
-                    if (rex_addon::get('synch')->getConfig('update_existing_on_key_conflict', true)) {
-                        
-                        $dbUpdateTime = strtotime($existingItem['updatedate'] ?? '1970-01-01');
-                        $fileUpdateTime = $this->getDirectoryUpdateTime($itemDir);
-                        
-                        // Nur updaten wenn Dateien tatsächlich neuer sind
-                        if ($fileUpdateTime > $dbUpdateTime + 5) { // 5 Sekunden Toleranz
-                            $this->updateItem((int)$existingItem['id'], $itemDir, $metadata);
-                        }
-                    }
-                } else {
-                    // Item existiert NICHT - aber prüfe auch nach Namen um Duplikate zu vermeiden
-                    $nameBasedItem = null;
-                    if (!empty($metadata['name'])) {
-                        $nameBasedItem = $this->findItemByName($metadata['name']);
-                    }
-                    
-                    if (!$nameBasedItem) {
-                        // Wirklich neu - kann erstellt werden
-                        $this->createItem($itemDir, $metadata);
-                    } else {
-                        // Item mit gleichem Namen existiert bereits
-                        // Logge das als Info, aber erstelle kein Duplikat
-                        error_log('SYNCH INFO: Skipping creation of "' . ($metadata['name'] ?? $key) . '" - item with same name already exists');
-                    }
-                }
-                
-            } catch (Exception $e) {
-                error_log('SYNCH ERROR processing directory ' . $dir . ': ' . $e->getMessage());
+            // Item existiert nicht mehr im Dateisystem -> aus DB löschen
+            if (!in_array($key, $fsKeys)) {
+                $this->deleteItem($item['id']);
+                error_log('SYNCH: Deleted DB item for removed directory: ' . $key);
             }
         }
     }
@@ -294,42 +285,30 @@ abstract class Synchronizer
     /**
      * Generiert einen sauberen Key aus einem Namen
      */
-    protected function generateKey(string $name = ''): string
+    protected function generateKey(string $name): string
     {
-        // Fallback für leeren Namen
         if (empty($name) || trim($name) === '') {
-            $name = 'unnamed_item_' . time();
+            $name = 'unnamed_' . time();
         }
         
-        $strategy = rex_addon::get('synch')->getConfig('key_generation_strategy', 'name_based');
-        
-        switch ($strategy) {
-            case 'date_name':
-                $prefix = date('Ymd_');
-                return $prefix . $this->cleanKey($name);
-                
-            case 'hash_based':
-                return substr(md5($name . time()), 0, 8) . '_' . $this->cleanKey($name);
-                
-            case 'name_based':
-            default:
-                return $this->cleanKey($name);
-        }
+        return $this->cleanKey($name);
     }
 
     /**
      * Bereinigt einen String für die Verwendung als Key/Ordnername
      */
-    protected function cleanKey(string $input = ''): string
+    protected function cleanKey(string $input): string
     {
-        // Null/Empty handling
         if (empty($input)) {
-            return 'unnamed_item';
+            return 'unnamed';
         }
         
         // Umlaute ersetzen
-        $input = str_replace(['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'], 
-                           ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'], $input);
+        $input = str_replace(
+            ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
+            ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
+            $input
+        );
         
         // Nur alphanumerische Zeichen und Unterstriche
         $input = preg_replace('/[^a-zA-Z0-9_]/', '_', $input);
@@ -368,87 +347,14 @@ abstract class Synchronizer
     }
 
     /**
-     * Benennt alle Dateien um (bei Umstellung descriptive_filenames)
-     */
-    public function renameAllFiles(bool $toDescriptive = true): array
-    {
-        $results = ['renamed' => 0, 'errors' => []];
-        
-        if (!is_dir($this->baseDir)) {
-            return $results;
-        }
-        
-        $dirs = scandir($this->baseDir);
-        foreach ($dirs as $dir) {
-            if ($dir === '.' || $dir === '..' || !is_dir($this->baseDir . $dir)) {
-                continue;
-            }
-            
-            $fullDir = $this->baseDir . $dir . '/';
-            $metadataFile = $fullDir . self::METADATA_FILE;
-            
-            if (!file_exists($metadataFile)) {
-                continue;
-            }
-            
-            try {
-                $metadata = rex_file::getConfig($metadataFile);
-                $name = $metadata['name'] ?? $dir;
-                
-                $key = $metadata['key'] ?? $dir;
-                
-                if ($toDescriptive) {
-                    // Von standard zu descriptive (mit Key als Prefix)
-                    $this->renameFile($fullDir, self::INPUT_FILE, $key . ' input.php');
-                    $this->renameFile($fullDir, self::OUTPUT_FILE, $key . ' output.php');
-                    $this->renameFile($fullDir, 'template.php', $key . ' template.php');
-                    $this->renameFile($fullDir, 'action.php', $key . ' action.php');
-                } else {
-                    // Von descriptive zu standard
-                    $this->renameFile($fullDir, $key . ' input.php', self::INPUT_FILE);
-                    $this->renameFile($fullDir, $key . ' output.php', self::OUTPUT_FILE);
-                    $this->renameFile($fullDir, $key . ' template.php', 'template.php');
-                    $this->renameFile($fullDir, $key . ' action.php', 'action.php');
-                }
-                
-                $results['renamed']++;
-            } catch (Exception $e) {
-                $results['errors'][] = "Fehler bei $dir: " . $e->getMessage();
-            }
-        }
-        
-        return $results;
-    }
-
-    /**
-     * Benennt eine einzelne Datei um
-     */
-    private function renameFile(string $dir, string $oldName, string $newName): bool
-    {
-        $oldPath = $dir . $oldName;
-        $newPath = $dir . $newName;
-        
-        if (!file_exists($oldPath) || $oldPath === $newPath) {
-            return true;
-        }
-        
-        // Ziel-Datei löschen falls vorhanden
-        if (file_exists($newPath)) {
-            unlink($newPath);
-        }
-        
-        return rename($oldPath, $newPath);
-    }
-
-    /**
      * Findet ein Item anhand des Keys
      */
     protected function findItemByKey(string $key): ?array
     {
         $sql = rex_sql::factory();
         $sql->setQuery(
-            'SELECT * FROM ' . $sql->escapeIdentifier($this->tableName) . ' WHERE ' . 
-            $sql->escapeIdentifier($this->keyColumn) . ' = ?',
+            'SELECT * FROM ' . $sql->escapeIdentifier($this->tableName) . 
+            ' WHERE ' . $sql->escapeIdentifier($this->keyColumn) . ' = ?',
             [$key]
         );
         
@@ -462,41 +368,12 @@ abstract class Synchronizer
     {
         $sql = rex_sql::factory();
         $sql->setQuery(
-            'SELECT * FROM ' . $sql->escapeIdentifier($this->tableName) . ' WHERE ' . 
-            $sql->escapeIdentifier($this->nameColumn) . ' = ?',
+            'SELECT * FROM ' . $sql->escapeIdentifier($this->tableName) . 
+            ' WHERE ' . $sql->escapeIdentifier($this->nameColumn) . ' = ?',
             [$name]
         );
         
         return $sql->getRows() > 0 ? $sql->getRow() : null;
-    }
-
-    /**
-     * Ermittelt die neueste Änderungszeit eines Verzeichnisses
-     */
-    protected function getDirectoryUpdateTime(string $dir): int
-    {
-        if (!is_dir($dir)) {
-            return 0;
-        }
-        
-        $latestTime = filemtime($dir);
-        $files = scandir($dir);
-        
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-            
-            $filePath = $dir . $file;
-            if (is_file($filePath)) {
-                $fileTime = filemtime($filePath);
-                if ($fileTime > $latestTime) {
-                    $latestTime = $fileTime;
-                }
-            }
-        }
-        
-        return $latestTime;
     }
 
     /**
@@ -513,8 +390,42 @@ abstract class Synchronizer
         $sql->update();
     }
 
+    /**
+     * Löscht ein Item aus der Datenbank
+     */
+    protected function deleteItem(int $id): void
+    {
+        $sql = rex_sql::factory();
+        $sql->setTable($this->tableName);
+        $sql->setWhere(['id' => $id]);
+        $sql->delete();
+    }
+
+    /**
+     * Gibt den Dateinamen für Input/Output/Template/Action zurück
+     * Immer mit Key als Prefix (sprechende Dateinamen)
+     */
+    protected function getFilename(string $key, string $type): string
+    {
+        return $key . ' ' . $type . '.php';
+    }
+
     // Abstract Methoden - müssen von Subklassen implementiert werden
+    
+    /**
+     * Schreibt alle Dateien eines Items ins Dateisystem
+     * (metadata.yml + input.php + output.php / template.php / action.php)
+     */
     abstract protected function writeItemFiles(string $dir, array $item): void;
+    
+    /**
+     * Aktualisiert ein existierendes Item in der DB aus dem Dateisystem
+     */
     abstract protected function updateItem(int $id, string $dir, array $metadata): void;
+    
+    /**
+     * Erstellt ein neues Item in der DB aus dem Dateisystem
+     * Verwendet AUTO_INCREMENT für die ID
+     */
     abstract protected function createItem(string $dir, array $metadata): void;
 }

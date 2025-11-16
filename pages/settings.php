@@ -14,44 +14,6 @@ $addon = rex_addon::get('synch');
 $message = '';
 $error = '';
 
-// Dateinamen umstellen
-if (rex_post('toggle_descriptive_filenames', 'boolean')) {
-    $currentSetting = $addon->getConfig('descriptive_filenames', false);
-    $newSetting = !$currentSetting;
-    
-    try {
-        // Alle Synchronizer durchgehen und Dateien umbenennen
-        $moduleSync = new ModuleSynchronizer();
-        $templateSync = new TemplateSynchronizer();
-        $actionSync = new ActionSynchronizer();
-        
-        $moduleResults = $moduleSync->renameAllFiles($newSetting);
-        $templateResults = $templateSync->renameAllFiles($newSetting);
-        $actionResults = $actionSync->renameAllFiles($newSetting);
-        
-        $totalRenamed = $moduleResults['renamed'] + $templateResults['renamed'] + $actionResults['renamed'];
-        $allErrors = array_merge($moduleResults['errors'], $templateResults['errors'], $actionResults['errors']);
-        
-        // Setting erst nach erfolgreichem Umbenennen ändern
-        $addon->setConfig('descriptive_filenames', $newSetting);
-        
-        if ($totalRenamed > 0) {
-            $message = "Dateinamen umgestellt: $totalRenamed Komponenten umbenannt";
-            if (!empty($allErrors)) {
-                $message .= " (mit " . count($allErrors) . " Fehlern)";
-            }
-        } else {
-            $message = "Dateinamen-Einstellung geändert (keine Dateien zum Umbenennen gefunden)";
-        }
-        
-        if (!empty($allErrors)) {
-            $error = "Einige Fehler beim Umbenennen: " . implode(', ', array_slice($allErrors, 0, 3));
-        }
-    } catch (Exception $e) {
-        $error = "Fehler beim Umbenennen: " . $e->getMessage();
-    }
-}
-
 // Konfiguration speichern - Key-Generierung
 if (rex_post('save_key_settings', 'boolean')) {
     $addon->setConfig('auto_generate_keys', rex_post('auto_generate_keys', 'boolean', false));
@@ -63,13 +25,8 @@ if (rex_post('save_key_settings', 'boolean')) {
 if (rex_post('save_sync_settings', 'boolean')) {
     $addon->setConfig('sync_frontend', rex_post('sync_frontend', 'boolean', false));
     $addon->setConfig('sync_backend', rex_post('sync_backend', 'boolean', false));
+    $addon->setConfig('sync_direction', rex_post('sync_direction', 'string', 'bidirectional'));
     $message = 'Automatische Synchronisation Einstellungen gespeichert';
-}
-
-// Konfiguration speichern - Dateinamen
-if (rex_post('save_filename_settings', 'boolean')) {
-    $addon->setConfig('descriptive_filenames', rex_post('descriptive_filenames', 'boolean', false));
-    $message = 'Dateinamen Einstellungen gespeichert';
 }
 
 // Konfiguration speichern - Konflikte
@@ -266,6 +223,26 @@ if ($error) {
                         <p class="text-muted"><?= $addon->i18n('sync_backend_note', 'Nur wenn als Admin eingeloggt') ?></p>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="sync-direction"><?= $addon->i18n('sync_direction', 'Synchronisations-Richtung') ?>:</label>
+                        <select class="form-control" id="sync-direction" name="sync_direction">
+                            <option value="files_to_db" <?= $addon->getConfig('sync_direction', 'files_to_db') === 'files_to_db' ? 'selected' : '' ?>>
+                                ← Nur Dateien zu DB (Dateisystem → Backend) - Empfohlen
+                            </option>
+                            <option value="db_to_files" <?= $addon->getConfig('sync_direction', 'files_to_db') === 'db_to_files' ? 'selected' : '' ?>>
+                                → Nur DB zu Dateien (Backend → Dateisystem)
+                            </option>
+                            <option value="bidirectional" <?= $addon->getConfig('sync_direction', 'files_to_db') === 'bidirectional' ? 'selected' : '' ?>>
+                                ↔️ Bidirektional (DB ↔ Dateien)
+                            </option>
+                        </select>
+                        <small class="text-muted">
+                            <strong>Dateien → DB (Empfohlen):</strong> Dateisystem ist Master, Backend wird aktualisiert. Ideal für Entwicklung mit IDE und Git. Löschen nur im Dateisystem möglich.<br>
+                            <strong>DB → Dateien:</strong> Backend ist Master, Datei-Änderungen werden überschrieben. Für Content-Editor.<br>
+                            <strong>Bidirektional:</strong> Änderungen werden bidirektional synchronisiert, aber Dateisystem ist Master beim Löschen. Lösch-Buttons im Backend werden deaktiviert.
+                        </small>
+                    </div>
+                    
                     <div class="alert alert-info">
                         <i class="rex-icon fa-info-circle"></i> <strong>Performance-Optimierung:</strong>
                         Das synch-Addon nutzt intelligente Change-Detection und prüft nur alle 60 Sekunden auf Änderungen. 
@@ -289,52 +266,6 @@ if ($error) {
                         <i class="rex-icon fa-save"></i> Sync-Einstellungen speichern
                     </button>
                 </form>
-            </div>
-        </div>
-
-        <!-- Dateinamen -->
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                <h3 class="panel-title"><i class="rex-icon fa-file-text"></i> Dateinamen</h3>
-            </div>
-            <div class="panel-body">
-                <form method="post">
-                    <div class="checkbox">
-                        <label>
-                            <input type="checkbox" name="descriptive_filenames" value="1" 
-                                   <?= $addon->getConfig('descriptive_filenames', true) ? 'checked' : '' ?>>
-                            <strong>Sprechende Dateinamen</strong> <span class="label label-success">Standard</span>
-                        </label>
-                        <p class="text-muted">
-                            <strong>Sprechend (Standard):</strong> <code>news_module input.php</code>, <code>news_module output.php</code><br>
-                            <strong>Klassisch:</strong> <code>input.php</code>, <code>output.php</code><br>
-                            Verbessert IDE-Integration (PhpStorm sucht "news_module input")
-                        </p>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="rex-icon fa-lightbulb-o"></i> <strong>IDE-Tipp:</strong> 
-                        In PhpStorm/VSCode einfach "news_module input" eingeben um die Datei zu öffnen, egal wo sie liegt!
-                    </div>
-                    
-                    <button type="submit" name="save_filename_settings" value="1" class="btn btn-success">
-                        <i class="rex-icon fa-save"></i> Dateinamen-Einstellungen speichern
-                    </button>
-                </form>
-                
-                <hr>
-                
-                <div class="well well-sm">
-                    <h5>Sofort alle Dateien umbenennen</h5>
-                    <form method="post" style="display: inline-block;">
-                        <button type="submit" name="toggle_descriptive_filenames" value="1" 
-                                class="btn btn-warning btn-sm">
-                            <i class="rex-icon fa-exchange"></i> 
-                            <?= $addon->getConfig('descriptive_filenames', true) ? 'Zu klassischen Namen' : 'Zu sprechenden Namen' ?>
-                        </button>
-                    </form>
-                    <small class="text-muted">Benennt alle vorhandenen Dateien automatisch um</small>
-                </div>
             </div>
         </div>
 
@@ -389,7 +320,7 @@ if ($error) {
                     <li>
                         <span class="text-success">
                             <i class="rex-icon fa-check"></i> 
-                            Saubere Ordnernamen (immer aktiv)
+                            Sprechende Dateinamen (immer aktiv)
                         </span>
                     </li>
                     <li>
@@ -414,12 +345,6 @@ if ($error) {
                         <span class="text-success">
                             <i class="rex-icon fa-dashboard"></i> 
                             Change-Detection (60s Cache)
-                        </span>
-                    </li>
-                    <li>
-                        <span class="text-<?= $addon->getConfig('descriptive_filenames', true) ? 'success' : 'muted' ?>">
-                            <i class="rex-icon fa-<?= $addon->getConfig('descriptive_filenames', true) ? 'check' : 'times' ?>"></i> 
-                            <?= $addon->getConfig('descriptive_filenames', true) ? 'Sprechende Dateinamen' : 'Klassische Dateinamen' ?>
                         </span>
                     </li>
                     <li>

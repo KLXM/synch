@@ -9,6 +9,7 @@
  */
 
 use KLXM\Synch\Manager;
+use KLXM\Synch\OutputFilter;
 
 // Console-Modus überspringen
 if (method_exists('rex', 'getConsole') && rex::getConsole()) {
@@ -20,11 +21,16 @@ if (rex::isSetup() || rex::isBackend() && rex_get('function') === 'install') {
     return;
 }
 
+// Output Filter für Backend registrieren (Lösch-Buttons entfernen)
+if (rex::isBackend()) {
+    OutputFilter::register();
+}
+
 // Automatische Synchronisation nur wenn explizit aktiviert
 $addon = rex_addon::get('synch');
 
-// Synchronisation ist standardmäßig DEAKTIVIERT - muss explizit aktiviert werden
-$syncBackend = $addon->getConfig('sync_backend', false);  // Default: false
+// Synchronisation ist standardmäßig im Backend AKTIVIERT (wie in package.yml)
+$syncBackend = $addon->getConfig('sync_backend', true);  // Default: true (aus package.yml)
 $syncFrontend = $addon->getConfig('sync_frontend', false); // Default: false
 
 // Auto-Sync pausiert?

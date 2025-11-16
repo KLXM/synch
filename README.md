@@ -1,447 +1,320 @@
-# Synch [sìŋk] - Moderne Key-basierte Synchronisation für REDAXO
+# Synch - Key-basierte Synchronisation für REDAXO 5
 
-Das **Synch** Addon bietet eine moderne, key-basierte Synchronisation zwischen Dateisystem und Datenbank.
-Synch ist eine Alternative zum Developer AddOn. Es verwendet anstelle der IDs der Module, Templates und Mudul-Acrions die Keys. So können sie überer mehrere Websites hinweg übergreifend genutzt werden. 
+Synch synchronisiert Module, Templates und Actions zwischen Dateisystem und Datenbank mit einem key-basierten System.
 
-## Features
+## 🎯 Hauptmerkmale
 
-✅ **Key-basierte Synchronisation** - Module, Templates und Actions mit eindeutigen Keys  
-✅ **Saubere Ordnernamen** - Nur der Key als Ordnername, keine ID-Anhänge wie `[23]`  
-✅ **Actions-Support** - Vollständige Synchronisation für Actions (Preview, Presave, Postsave)  
-✅ **Automatische Key-Generierung** - Intelligente Key-Erstellung aus Namen  
-✅ **Change-Detection** - Synchronisation nur bei tatsächlichen Änderungen (Performance)  
-✅ **Pausieren-Funktion** - Auto-Sync temporär deaktivieren für Entwicklung  
-✅ **Console Commands** - `synch:sync` mit erweiterten Optionen  
-✅ **Migration-Support** - Einfache Migration vom developer Addon  
+- **Key-basiertes System**: Jedes Item hat einen eindeutigen Key (wie in REDAXO Core)
+- **Bidirektionale Synchronisation**: Dateisystem ↔ Datenbank mit konfigurierbarer Richtung
+- **Zeitstempel-basiert**: Nur der neuere Stand wird übernommen (5 Sek. Toleranz)
+- **Automatisches Cleanup**: Gelöschte Items werden automatisch synchronisiert
+- **Sprechende Dateinamen**: `{key} input.php` statt `input.php` für bessere IDE-Integration
+- **AUTO_INCREMENT IDs**: Keine ID-Konflikte bei neuen Items
 
-## Installation
+## 📦 Installation
 
-1. Addon in das REDAXO-Verzeichnis `src/addons/synch/` kopieren
-2. Addon im Backend aktivieren
-3. Einstellungen nach Bedarf anpassen
+1. Synch-Addon herunterladen und im `/redaxo/src/addons/` Ordner entpacken
+2. Im REDAXO-Backend unter "Addons" installieren und aktivieren
+3. Unter "Synch → Einstellungen" die Synchronisations-Richtung wählen
 
-### Eigener Basis-Pfad (Optional)
+## 🚀 Quick Start
 
-Der Standard-Pfad für Sync-Dateien ist `redaxo/data/addons/synch/`. Ein eigener Pfad kann definiert werden, z.B. im Projekt-Root:
+### 1. Neues Modul erstellen
 
+Erstelle einen Ordner: `/redaxo/data/addons/synch/modules/news_module/`
+
+**metadata.yml:**
+```yaml
+name: "News Modul"
+key: "news_module"
+```
+
+**news_module input.php:**
 ```php
-// In boot.php oder config.php
-if (rex_addon::get('synch')->isAvailable()) {
-    synch_manager::setBasePath(rex_path::src());
-}
+<?php
+$mform = new MForm();
+$mform->addTextField('1.0', ['label' => 'Überschrift']);
+$mform->addTextAreaField('2.0', ['label' => 'Text']);
+echo $mform->show();
 ```
 
-**Beispiele für eigene Pfade:**
+**news_module output.php:**
 ```php
-// Alle Sync-Dateien im src/ Verzeichnis
-synch_manager::setBasePath(rex_path::src());
-
-// Eigener sync/ Ordner im Projekt-Root  
-synch_manager::setBasePath(rex_path::base('sync'));
-
-// In einem Git-Repository außerhalb von REDAXO
-synch_manager::setBasePath('/path/to/your/git-repo/redaxo-sync');
+<h2><?= rex_var::toMedia('REX_VALUE[1]') ?></h2>
+<div><?= rex_var::toMedia('REX_VALUE[2]') ?></div>
 ```
 
-**Ordnerstruktur bei eigenem Pfad:**
-```
-src/                              # Bei setBasePath(rex_path::src())
-├── modules/
-│   ├── news_module/
-│   └── contact_form/
-├── templates/ 
-│   ├── default_template/
-│   └── mobile_template/
-└── actions/
-    ├── newsletter_signup/
-    └── contact_validation/
-```
+### 2. Synchronisation ausführen
 
-## Verwendung
+- **Automatisch**: Wird im Backend automatisch alle 60 Sekunden ausgeführt (wenn aktiviert)
+- **Manuell**: Synch → Einstellungen → "Synchronisation durchführen"
+- **Console**: `php redaxo/bin/console synch:sync` (siehe unten)
 
-### Backend
-- **Synch > Einstellungen**: Konfiguration der Synchronisations-Optionen
-- **"Synchronisation ausführen"** Button für manuelle Sync
+Das Modul erscheint automatisch in der Modulliste mit einer AUTO_INCREMENT ID!
 
-### Console
+## 💻 Console Commands
+
 ```bash
 # Komplette Synchronisation (Module, Templates, Actions)
 php redaxo/bin/console synch:sync
 
-# Nur Module
+# Nur Module synchronisieren
 php redaxo/bin/console synch:sync --modules-only
+php redaxo/bin/console synch:sync -m
 
-# Nur Templates  
+# Nur Templates synchronisieren
 php redaxo/bin/console synch:sync --templates-only
+php redaxo/bin/console synch:sync -t
 
-# Nur Actions
+# Nur Actions synchronisieren
 php redaxo/bin/console synch:sync --actions-only
+php redaxo/bin/console synch:sync -a
 
-# Dry Run (keine Änderungen)
+# Dry Run (Test ohne Änderungen)
 php redaxo/bin/console synch:sync --dry-run
+php redaxo/bin/console synch:sync -d
 ```
 
-## Ordnerstruktur
+**Kombinationen möglich:**
+```bash
+# Dry Run nur für Module
+php redaxo/bin/console synch:sync -m -d
+
+# Deployment-Script
+php redaxo/bin/console synch:sync && php redaxo/bin/console cache:clear
+```
+
+## 📁 Dateistruktur
+
+```
+redaxo/data/addons/synch/
+├── modules/
+│   └── news_module/
+│       ├── metadata.yml
+│       ├── news_module input.php
+│       └── news_module output.php
+├── templates/
+│   └── default_template/
+│       ├── metadata.yml
+│       └── default_template template.php
+└── actions/
+    └── save_action/
+        └── metadata.yml
+```
+
+## 🔧 Synchronisations-Modi
+
+### 1. Dateien → DB (Empfohlen) ⬅️
+
+**Dateisystem ist Master**
+
+- ✅ Ideal für Entwicklung mit IDE und Git
+- ✅ Dateien überschreiben Backend-Änderungen
+- ✅ Gelöschte Ordner → Items werden aus DB entfernt
+- ⚠️ Backend-Änderungen gehen verloren beim nächsten Sync
+- 🔒 Lösch-Buttons im Backend deaktiviert
+
+**Workflow:**
+1. Modul in IDE erstellen/ändern
+2. Sync läuft automatisch oder manuell triggern
+3. Änderungen erscheinen im Backend
+
+### 2. DB → Dateien ➡️
+
+**Backend ist Master**
+
+- ✅ Backend-Änderungen werden ins Dateisystem geschrieben
+- ✅ Ideal wenn hauptsächlich im Backend gearbeitet wird
+- ⚠️ Datei-Änderungen werden überschrieben
+- ⚠️ Im Backend gelöschte Items → Dateien bleiben bestehen
+
+**Workflow:**
+1. Modul im Backend bearbeiten
+2. Dateien werden automatisch aktualisiert
+3. Git-Commit der geänderten Dateien
+
+### 3. Bidirektional ↔️
+
+**Zeitstempel entscheidet**
+
+- ✅ Änderungen in beide Richtungen
+- ✅ Der neuere Stand gewinnt (5 Sek. Toleranz)
+- 🔒 Löschen nur im Dateisystem möglich (Backend-Lösch-Buttons deaktiviert)
+- ⚠️ Kann zu unerwartetem Verhalten führen wenn parallel gearbeitet wird
+
+**Workflow:**
+1. Änderungen im Backend oder IDE
+2. Sync übernimmt automatisch den neueren Stand
+3. Löschen nur durch Entfernen des Ordners
+
+## 📝 Metadata Format
 
 ### Module
-```
-redaxo/data/addons/synch/modules/
-├── news_module/
-│   ├── metadata.yml
-│   ├── input.php
-│   └── output.php
-└── contact_form/
-    ├── metadata.yml
-    ├── input.php
-    └── output.php
+
+```yaml
+name: "News Modul"
+key: "news_module"
+createdate: "2024-11-16 14:00:00"  # Automatisch
+updatedate: "2024-11-16 14:30:00"  # Automatisch
+createuser: "admin"                 # Automatisch
+updateuser: "admin"                 # Automatisch
 ```
 
 ### Templates
-```
-redaxo/data/addons/synch/templates/
-├── default_template/
-│   ├── metadata.yml
-│   └── template.php
-└── news_detail/
-    ├── metadata.yml
-    └── template.php
+
+```yaml
+name: "Standard Layout"
+key: "standard_layout"
+active: true
+attributes:
+  ctype: []
+  modules:
+    1: [1, 2, 3]
+  categories: []
+createdate: "2024-11-16 14:00:00"
+updatedate: "2024-11-16 14:00:00"
+createuser: "admin"
+updateuser: "admin"
 ```
 
 ### Actions
-```
-redaxo/data/addons/synch/actions/
-├── newsletter_signup/
-│   ├── metadata.yml
-│   └── action.php
-└── contact_form/
-    ├── metadata.yml
-    └── action.php
-```
-
-## Konfiguration
-
-| Option | Beschreibung | Standard |
-|--------|--------------|----------|
-| `auto_generate_keys` | Automatische Key-Generierung für Items ohne Key | `true` |
-| `key_generation_strategy` | Strategie für Key-Generierung | `name_based` |
-| `update_existing_on_key_conflict` | Aktualisiert existierende Items bei Konflikten | `true` |
-| `sync_frontend` | Auto-Sync im Frontend (nur für Admins) | `false` |
-| `sync_backend` | Auto-Sync im Backend (nur für Admins) | `true` |
-
-### Key-Generierungs-Strategien
-
-- **`name_based`** (empfohlen): `"News Module" → "news_module"`
-- **`date_name`**: `"News Module" → "20241105_news_module"`  
-- **`hash_based`**: `"News Module" → "a1b2c3d4_news_module"`
-
-## Performance & Entwicklung
-
-### Change-Detection
-Das Addon nutzt intelligente Change-Detection:
-- Prüft nur alle 60 Sekunden auf Änderungen (Cache)
-- Synchronisiert nur bei tatsächlichen Updates
-- Vergleicht Timestamps zwischen DB und Dateisystem
-
-### Auto-Sync Pausieren
-Für die Entwicklung lässt sich die automatische Synchronisation pausieren:
-- **Pausieren-Button** in den Einstellungen
-- Pausierung endet automatisch nach 30 Minuten
-- Status wird mit Countdown angezeigt
-
-## Migration vom developer Addon
-
-```php
-// Module migrieren
-$results = synch_migration::migrateModulesFromDeveloper();
-
-// Templates migrieren  
-$results = synch_migration::migrateTemplatesFromDeveloper();
-```
-
-## Neues Modul/Template/Action anlegen
-
-### Minimal-Setup für Module
-
-Um ein neues Modul anzulegen, reicht ein Ordner mit **metadata.yml**:
-
-```
-redaxo/data/addons/synch/modules/news_module/
-└── metadata.yml
-```
-
-**Minimal metadata.yml:**
-```yaml
-name: "News Module"
-key: "news_module"
-```
-
-Alle anderen Felder werden automatisch generiert:
-- `createdate`/`updatedate` → aktueller Timestamp
-- `createuser`/`updateuser` → aktueller User oder "synch"
-- `input.php`/`output.php` → optional, leer wenn nicht vorhanden
-
-**Mit PHP-Code:**
-```
-news_module/
-├── metadata.yml
-├── input.php     # Optional: Eingabe-Code
-└── output.php    # Optional: Ausgabe-Code
-```
-
-### Minimal-Setup für Templates
-
-```
-redaxo/data/addons/synch/templates/default_template/
-├── metadata.yml
-└── template.php    # Optional
-```
-
-**Minimal metadata.yml:**
-```yaml
-name: "Default Template"
-key: "default_template"
-```
-
-### Minimal-Setup für Actions
-
-```
-redaxo/data/addons/synch/actions/newsletter_signup/
-├── metadata.yml
-└── action.php      # Optional
-```
-
-**Minimal metadata.yml:**
-```yaml
-name: "Newsletter Signup"
-key: "newsletter_signup"
-```
-
-### Quick-Start Beispiel
-
-1. **Ordner erstellen:**
-   ```bash
-   mkdir -p redaxo/data/addons/synch/modules/my_new_module
-   ```
-
-2. **metadata.yml erstellen:**
-   ```bash
-   echo 'name: "My New Module"
-   key: "my_new_module"' > redaxo/data/addons/synch/modules/my_new_module/metadata.yml
-   ```
-
-3. **PHP-Dateien erstellen (optional):**
-   ```bash
-   # Sprechende Dateinamen (Standard seit v1.1)
-   echo '<?php echo "Input code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/my_new_module\ input.php
-   echo '<?php echo "Output code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/my_new_module\ output.php
-   
-   # Oder klassische Namen (werden beim Sync automatisch gelesen)
-   echo '<?php echo "Input code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/input.php
-   echo '<?php echo "Output code"; ?>' > redaxo/data/addons/synch/modules/my_new_module/output.php
-   ```
-
-4. **Synchronisieren:** 
-   - Backend: **Synch > Einstellungen** → "Jetzt synchronisieren" 
-   - Console: `php redaxo/bin/console synch:sync --modules-only`
-
-5. **Fertig!** Das Modul ist in REDAXO verfügbar
-
-### ⚠️ Wichtige Hinweise zum Sync-Verhalten
-
-**Beim Lesen (Dateien → Datenbank):**
-- Synch sucht automatisch nach beiden Formaten: `key input.php` und `input.php`
-- Manuell angelegte `input.php`/`output.php` werden korrekt eingelesen
-
-**Beim Schreiben (Datenbank → Dateien):**
-- Neue Dateien werden im aktuell konfigurierten Format erstellt
-- **Standard:** Sprechende Dateinamen (`news_module input.php`)
-- Alte Dateien bleiben bestehen → mögliche Duplikate!
-
-**Dateinamen-Migration:**
-- **Automatisch:** Über Button in den Einstellungen "Zu Standard-Namen / Zu sprechenden Namen"
-- **Manuell:** Alte Dateien löschen oder umbenennen vor Sync
-
-## Sprechende Dateinamen
-
-### Standard vs. Sprechend
-
-**Standard-Format:**
-```
-news_module/
-├── metadata.yml
-├── input.php
-└── output.php
-```
-
-**Sprechendes Format (mit Key als Prefix):**
-```
-news_module/
-├── metadata.yml
-├── news_module input.php
-└── news_module output.php
-```
-
-### IDE-Integration aktivieren
-
-In **Synch > Einstellungen** die Option **"Sprechende Dateinamen"** aktivieren und per Button automatisch alle Dateien umbenennen.
-
-**Vorteile:**
-- **PhpStorm/VSCode:** `news_module input` findet die Datei sofort
-- **Eindeutige Dateierkennung** in Suchergebnissen
-- **Bessere Übersicht** bei vielen geöffneten Dateien
-
-### ⚠️ Wichtige Hinweise
-
-**Beim manuellen Anlegen neuer Dateien:**
-
-1. **Wenn sprechende Dateinamen aktiviert sind:**
-   - ✅ Anlegen: `news_module input.php` (wird beim Sync gefunden)
-   - ❌ Vermeiden: `input.php` (wird beim nächsten DB→Datei Sync überschrieben!)
-
-2. **Wenn Standard-Dateinamen aktiviert sind:**
-   - ✅ Anlegen: `input.php` (wird beim Sync gefunden)
-   - ❌ Vermeiden: `news_module input.php` (wird ignoriert)
-
-**Sync-Verhalten:**
-- **Lesen (Datei → DB):** Sucht beide Formate (sprechend zuerst, dann Standard)
-- **Schreiben (DB → Datei):** Erstellt nur das aktuell konfigurierte Format
-- **Automatisches Umbenennen:** Nur per Settings-Button, nicht beim normalen Sync
-
-### Auto-Key-Generierung
-
-Wenn `auto_generate_keys` aktiviert ist (Standard), reicht sogar nur der Name:
 
 ```yaml
-name: "News Module"
-# key wird automatisch zu "news_module" generiert
-```
-
-## Sprechende Dateinamen (Standard)
-
-Seit v1.1 verwendet das synch Addon standardmäßig **sprechende Dateinamen** mit dem Key als Prefix:
-
-### Dateinamen-Formate
-
-| Typ | Standard (sprechend) | Klassisch |
-|-----|---------------------|-----------|
-| **Module** | `news_module input.php`<br>`news_module output.php` | `input.php`<br>`output.php` |
-| **Templates** | `default_template template.php` | `template.php` |
-| **Actions** | `newsletter_signup action.php` | `action.php` |
-
-### IDE-Integration
-
-**PhpStorm/VSCode Suche:**
-```
-news_module input    → Findet sofort "news_module input.php"
-contact input        → Findet "contact_form input.php" 
-newsletter action    → Findet "newsletter_signup action.php"
-```
-
-**Vorteile:**
-- 🔍 **Schnelleres Finden** von Dateien in der IDE
-- 📁 **Klare Zuordnung** auch in Dateilisten
-- 🔒 **Stabile Namen** (Key ändert sich nie, Titel kann sich ändern)
-- 🎯 **Konsistent** mit Ordnernamen (beides Key-basiert)
-
-### Umstellung
-
-In **Synch > Einstellungen** kann zwischen beiden Formaten umgestellt werden:
-- Button "Zu Standard-Namen" / "Zu sprechenden Namen"
-- Alle vorhandenen Dateien werden automatisch umbenannt
-- Keine manuellen Eingriffe erforderlich
-
-## Dateiformate
-
-### metadata.yml (Module)
-```yaml
-name: "News Module"
-key: "news_module" 
-createdate: "2025-11-05 12:00:00"
-updatedate: "2025-11-05 15:30:00"
+name: "Save Action"
+key: "save_action"
+preview: ""
+presave: |
+  // Code vor dem Speichern
+  $params['article']->setValue('updateuser', rex::getUser()->getLogin());
+postsave: |
+  // Code nach dem Speichern
+  rex_article_cache::delete($params['article']->getId());
+createdate: "2024-11-16 14:00:00"
+updatedate: "2024-11-16 14:00:00"
 createuser: "admin"
-updateuser: "developer"
+updateuser: "admin"
 ```
 
-### metadata.yml (Templates)
-```yaml
-name: "Default Template"
-key: "default_template"
-active: true
-createdate: "2025-11-05 12:00:00"  
-updatedate: "2025-11-05 15:30:00"
-createuser: "admin"
-updateuser: "developer"
+## ⚙️ Einstellungen
+
+### Auto-Sync
+
+- **Im Backend**: Synchronisation alle 50 Sekunden im Backend
+- **Im Frontend**: Synchronisation im Frontend (nur wenn als Admin eingeloggt)
+
+### Key-Generierung
+
+Aktivieren um automatisch Keys aus Namen zu generieren:
+- "News Modul" → `news_modul`
+- "Standard Layout 2024" → `standard_layout_2024`
+- Sonderzeichen werden entfernt, Umlaute umgewandelt (ä→ae, ö→oe, ü→ue)
+
+### Konfliktbehandlung
+
+- **Dateien überschreiben**: Dateisystem-Änderungen haben Vorrang
+- **DB überschreiben**: Datenbank-Änderungen haben Vorrang
+- **Neuer gewinnt**: Zeitstempel entscheidet (nur bei bidirektional sinnvoll)
+
+## 🔄 Workflows
+
+### Entwickler-Workflow (Empfohlen)
+
+```bash
+# 1. Sync-Modus auf "Dateien → DB" stellen
+# 2. In IDE arbeiten
+cd redaxo/data/addons/synch/modules/
+mkdir my_module
+cd my_module
+
+# 3. metadata.yml erstellen
+echo 'name: "My Module"
+key: "my_module"' > metadata.yml
+
+# 4. Code-Dateien erstellen
+touch "my_module input.php"
+touch "my_module output.php"
+
+# 5. Git-Commit
+git add .
+git commit -m "Add my_module"
+
+# 6. Auf anderen Systemen: Git pull + Sync
+git pull
+# → Modul erscheint automatisch im Backend
 ```
 
-### metadata.yml (Actions)
-```yaml
-name: "Newsletter Signup"
-key: "newsletter_signup"
-createdate: "2025-11-05 12:00:00"
-updatedate: "2025-11-05 15:30:00" 
-createuser: "admin"
-updateuser: "developer"
+### Backend-Workflow
+
+```bash
+# 1. Sync-Modus auf "DB → Dateien" stellen
+# 2. Im REDAXO-Backend Modul erstellen/bearbeiten
+# 3. Dateien werden automatisch erstellt/aktualisiert
+# 4. Git-Commit der geänderten Dateien
+git add redaxo/data/addons/synch/
+git commit -m "Update module from backend"
 ```
 
-### action.php (Actions)
-```php
-<?php
+## 🆚 Vergleich mit Developer-Addon
 
-/**
- * Newsletter Signup
- * Key: newsletter_signup
- */
+| Feature | Synch | Developer |
+|---------|-------|-----------|
+| Key-basiert | ✅ | ❌ (ID-basiert) |
+| AUTO_INCREMENT IDs | ✅ | ❌ (IDs aus Dateien) |
+| Dateien → DB | ✅ | ✅ |
+| DB → Dateien | ✅ | ✅ |
+| Sync-Modi wählbar | ✅ (3 Modi) | ❌ (immer beide Richtungen) |
+| Zeitstempel-Vergleich | ✅ | ❌ (überschreibt immer) |
+| Sprechende Dateinamen | ✅ (immer) | ✅ (optional) |
+| Cleanup gelöschter Items | ✅ (konfigurierbar) | ✅ |
+| Lösch-Schutz im Backend | ✅ (bei files_to_db + bidirectional) | ❌ |
 
-// === PREVIEW ===
-echo "Newsletter Anmeldung Vorschau";
+## 🔒 Sicherheit
 
-// === PRESAVE ===
-if (!$_POST['email']) {
-    echo "E-Mail-Adresse ist erforderlich";
-    exit;
-}
+- **Lösch-Schutz**: In `files_to_db` und `bidirectional` Modi sind Backend-Lösch-Buttons deaktiviert
+- **Pause-Mechanismus**: Nach Backend-Änderungen wird Auto-Sync 50 Sekunden pausiert
+- **Zeitstempel-Toleranz**: 5 Sekunden Toleranz verhindert Race-Conditions
 
-// === POSTSAVE ===
-mail('admin@example.com', 'Neue Newsletter-Anmeldung', $_POST['email']);
-```
+## 🐛 Troubleshooting
 
-## Best Practices
+### "Modul wurde nicht gefunden"
+- Cache leeren: System → Cache löschen
+- Prüfen ob `metadata.yml` existiert und `key` gesetzt ist
+- Sync manuell ausführen: Synch → Einstellungen → "Synchronisation durchführen"
 
-1. **Eindeutige Keys**: Beschreibende, eindeutige Keys verwenden
-2. **Naming Convention**: `module_name`, `template_name` (lowercase, underscores)
-3. **Git-Integration**: Ordner in Version Control einbeziehen
-4. **Automatisierung**: Sync in Deploy-Prozess integrieren
-5. **Eigener Basis-Pfad**: Für bessere Git-Integration außerhalb von `data/`
+### "Items werden doppelt angelegt"
+- Prüfen ob alle Items eindeutige Keys haben
+- Keys dürfen nicht `null` oder leer sein
+- Alte Duplikate mit SQL entfernen: `DELETE FROM rex_module WHERE key IS NULL`
 
-### Basis-Pfad Empfehlungen
+### "Gelöschte Items kommen zurück"
+- Sync-Modus prüfen: Bei `bidirectional` müssen Items im Dateisystem gelöscht werden
+- Bei `files_to_db`: Ordner löschen, dann Sync ausführen
+- Bei `db_to_files`: Im Backend löschen (Dateien bleiben)
 
-**Standard-Pfad** (`redaxo/data/addons/synch/`):
-- ✅ Funktioniert sofort ohne Konfiguration
-- ✅ Wird automatisch bei Addon-Installation erstellt
-- ❌ Liegt im `data/` Verzeichnis (oft nicht in Git)
+### "Änderungen werden nicht übernommen"
+- Zeitstempel prüfen: Nur neuere Änderungen werden übernommen
+- Sync-Modus prüfen: Richtige Richtung eingestellt?
+- Auto-Sync aktiviert? Oder manuell triggern
 
-**Eigener Pfad** (z.B. `src/`):
-- ✅ **Git-Integration**: Sync-Dateien direkt im Repository
-- ✅ **Team-Entwicklung**: Einheitliche Pfade für alle Entwickler
-- ✅ **CI/CD-freundlich**: Deploy-Prozesse einfacher
-- ✅ **Backup-sicher**: Teil des Code-Repositories
-- ❌ Erfordert einmalige Konfiguration
+## 📚 Best Practices
 
-## Vorteile für Teams
+1. **Wähle einen Sync-Modus und bleibe dabei**: Häufiges Wechseln kann zu Verwirrung führen
+2. **Verwende aussagekräftige Keys**: `news_teaser` statt `modul_1`
+3. **Keys nie ändern**: Keys sind wie Primärschlüssel, Änderung = neues Item
+4. **Git-Ignore für metadata Timestamps**: `updatedate` ändert sich ständig
+5. **Teste neue Module in Entwicklungsumgebung**: Nicht direkt auf Live-System
+6. **Dokumentiere Custom Keys**: Wenn Auto-Generierung deaktiviert
 
-- 🎯 **Keine ID-Konflikte** mehr zwischen Entwicklern
-- 🧹 **Saubere Ordnernamen** für bessere Übersicht
-- 🔄 **Einfache Synchronisation** zwischen Umgebungen
-- 📦 **Git-freundlich** durch konsistente Dateinamen
-- ⚡ **Schnellere Entwicklung** ohne manuelle ID-Verwaltung
+## 🔗 Links
 
-## Troubleshooting
+- [REDAXO Website](https://redaxo.org)
+- [GitHub Repository](https://github.com/klxm/synch)
+- [Issue Tracker](https://github.com/klxm/synch/issues)
 
-**Problem**: Module werden doppelt erstellt  
-**Lösung**: `update_existing_on_key_conflict` aktivieren
+## 📄 Lizenz
 
-**Problem**: Keys kollidieren  
-**Lösung**: Eindeutige Keys in metadata.yml definieren
+MIT License
 
-**Problem**: Ordner haben immer noch IDs  
-**Lösung**: Einmal manuell synchronisieren - saubere Ordnernamen sind immer aktiv
+## 👥 Credits
+
+Entwickelt von KLXM Web Development
