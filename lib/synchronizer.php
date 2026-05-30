@@ -75,6 +75,7 @@ abstract class Synchronizer
             
             // 2. Existierende Verzeichnisse scannen
             $fsItems = $this->getItemsFromFilesystem();
+            $runInitialBootstrap = $this->isInitialFilesystemBootstrapNeeded($syncDirection, $dbItems, $fsItems);
             
             // 3. DB Items mit Dateisystem synchronisieren (nur wenn nicht files_to_db)
             if ($syncDirection !== 'files_to_db') {
@@ -94,12 +95,23 @@ abstract class Synchronizer
                     $this->syncItemToFilesystem($item, $fsItems);
                 }
             } else {
-                // files_to_db mode: nur Keys sammeln, keine DB→Files Sync
+                // files_to_db mode: Dateisystem ist Master.
+                // Ausnahme: Beim ersten Lauf mit leerem Dateisystem werden DB-Inhalte
+                // einmalig ins Dateisystem exportiert (Bootstrap).
                 foreach ($dbItems as $item) {
-                    $key = $item[$this->keyColumn] ?? null;
-                    if (!empty($key)) {
+                    $key = $this->ensureItemHasKey($item);
+                    if ($key !== '') {
                         $dbKeys[] = $key;
+
+                        if ($runInitialBootstrap) {
+                            $item[$this->keyColumn] = $key;
+                            $this->syncItemToFilesystem($item, $fsItems);
+                        }
                     }
+                }
+
+                if ($runInitialBootstrap) {
+                    $this->markInitialFilesystemBootstrapDone();
                 }
             }
             
@@ -441,6 +453,58 @@ abstract class Synchronizer
         }
 
         return (int) $rawId;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $dbItems
+     * @param array<string, string> $fsItems
+     */
+    private function isInitialFilesystemBootstrapNeeded(string $syncDirection, array $dbItems, array $fsItems): bool
+    {
+        if ($syncDirection !== 'files_to_db') {
+            return false;
+        }
+
+        if (count($dbItems) === 0 || count($fsItems) !== 0) {
+            return false;
+        }
+
+        $addon = rex_addon::get('synch');
+        $flagKey = $this->getInitialBootstrapFlagKey();
+
+        return !(bool) $addon->getConfig($flagKey, false);
+    }
+
+    private function markInitialFilesystemBootstrapDone(): void
+    {
+        rex_addon::get('synch')->setConfig($this->getInitialBootstrapFlagKey(), true);
+    }
+
+    private function getInitialBootstrapFlagKey(): string
+    {
+        return 'initial_filesystem_bootstrap_done_' . $this->dirname;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private function ensureItemHasKey(array $item): string
+    {
+        $existingKey = (string) ($item[$this->keyColumn] ?? '');
+        if ($existingKey !== '') {
+            return $existingKey;
+        }
+
+        $rowId = $this->extractRowId($item);
+        if ($rowId === null) {
+            return '';
+        }
+
+        $name = (string) ($item[$this->nameColumn] ?? 'unnamed');
+        $generatedKey = $this->ensureUniqueKey($this->generateKey($name));
+        $this->updateItemKey($rowId, $generatedKey);
+
+        return $generatedKey;
     }
 
     /**

@@ -64,6 +64,11 @@ Unter Synch > Einstellungen:
 
 Hinweis: In files_to_db ist das Dateisystem Master. Backend-Änderungen können überschrieben werden.
 
+Wichtig für die Erstinstallation:
+- Wenn bereits Module/Templates/Actions in der Datenbank existieren, aber noch keine Synch-Verzeichnisse vorhanden sind,
+  exportiert der erste Sync diese Inhalte einmalig ins Dateisystem (Initial-Bootstrap).
+- Danach bleibt `files_to_db` wie gewohnt dateisystemführend.
+
 ### 3. Typische Aufgaben
 
 1. Neues Modul aus Datei anlegen:
