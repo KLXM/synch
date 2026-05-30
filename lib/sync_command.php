@@ -67,7 +67,9 @@ class SyncCommand extends rex_console_command
                 
                 if (!$dryRun) {
                     $moduleSync = new ModuleSynchronizer();
-                    $moduleSync->sync();
+                    if (!$moduleSync->sync()) {
+                        throw new Exception('Module-Synchronisation fehlgeschlagen');
+                    }
                 }
                 
                 $output->writeln('<info>✓ Module synchronisiert</info>');
@@ -79,7 +81,9 @@ class SyncCommand extends rex_console_command
                 
                 if (!$dryRun) {
                     $templateSync = new TemplateSynchronizer();
-                    $templateSync->sync();
+                    if (!$templateSync->sync()) {
+                        throw new Exception('Template-Synchronisation fehlgeschlagen');
+                    }
                 }
                 
                 $output->writeln('<info>✓ Templates synchronisiert</info>');
@@ -91,7 +95,9 @@ class SyncCommand extends rex_console_command
                 
                 if (!$dryRun) {
                     $actionSync = new ActionSynchronizer();
-                    $actionSync->sync();
+                    if (!$actionSync->sync()) {
+                        throw new Exception('Action-Synchronisation fehlgeschlagen');
+                    }
                 }
                 
                 $output->writeln('<info>✓ Actions synchronisiert</info>');

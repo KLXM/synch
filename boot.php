@@ -12,7 +12,7 @@ use KLXM\Synch\Manager;
 use KLXM\Synch\OutputFilter;
 
 // Console-Modus überspringen
-if (method_exists('rex', 'getConsole') && rex::getConsole()) {
+if (rex::getConsole()) {
     return;
 }
 
@@ -23,14 +23,27 @@ if (rex::isSetup() || rex::isBackend() && rex_get('function') === 'install') {
 
 // Output Filter für Backend registrieren (Lösch-Buttons entfernen)
 if (rex::isBackend()) {
+    $syncDirection = (string) rex_addon::get('synch')->getConfig('sync_direction', 'files_to_db');
+    $currentPage = rex_be_controller::getCurrentPage();
+    $backendFunction = rex_request('function', 'string');
+
+    if (
+        $syncDirection === 'files_to_db'
+        && $currentPage === 'modules/modules'
+        && in_array($backendFunction, ['add', 'edit', 'delete'], true)
+    ) {
+        rex_response::sendRedirect(rex_url::backendPage('modules/modules'));
+        exit;
+    }
+
     OutputFilter::register();
 }
 
 // Automatische Synchronisation nur wenn explizit aktiviert
 $addon = rex_addon::get('synch');
 
-// Synchronisation ist standardmäßig im Backend AKTIVIERT (wie in package.yml)
-$syncBackend = $addon->getConfig('sync_backend', true);  // Default: true (aus package.yml)
+// Synchronisation ist standardmäßig deaktiviert bis explizit aktiviert
+$syncBackend = $addon->getConfig('sync_backend', false);
 $syncFrontend = $addon->getConfig('sync_frontend', false); // Default: false
 
 // Auto-Sync pausiert?
@@ -51,7 +64,7 @@ if (
     ((!rex::isBackend() && $syncFrontend) ||
     (rex::getUser() && rex::isBackend() && $syncBackend))
 ) {
-    rex_extension::register('PACKAGES_INCLUDED', function () use ($addon) {
+    rex_extension::register('PACKAGES_INCLUDED', static function (): void {
         // Nur für Admins ausführen (wie Developer Addon)
         if (rex::isDebugMode() || (rex::getUser() && rex::getUser()->isAdmin())) {
             // Change Detection - nur synchronisieren wenn sich etwas geändert hat

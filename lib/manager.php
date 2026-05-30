@@ -5,8 +5,6 @@ namespace KLXM\Synch;
 use rex_path;
 use rex_dir;
 use rex_addon;
-use rex_sql;
-use rex;
 use Exception;
 
 /**
@@ -14,7 +12,7 @@ use Exception;
  */
 class Manager
 {
-    private static $basePath;
+    private static string $basePath = '';
 
     /**
      * Setzt den Basis-Pfad für die Synchronisation
@@ -30,7 +28,7 @@ class Manager
      */
     public static function getBasePath(): string
     {
-        $path = self::$basePath ?: rex_path::addonData('synch');
+        $path = self::$basePath !== '' ? self::$basePath : rex_path::addonData('synch');
         
         // Stelle sicher, dass der Pfad existiert
         if (!is_dir($path)) {
@@ -131,60 +129,25 @@ class Manager
             return false;
         }
         
-        static $lastCheck = null;
+        static $lastCheck = 0;
         static $lastResult = null;
         
         // Cache für 60 Sekunden
-        if ($lastCheck && (time() - $lastCheck) < 60 && $lastResult !== null) {
+        if ($lastCheck > 0 && (time() - $lastCheck) < 60 && $lastResult !== null) {
             return $lastResult;
         }
         
         $lastCheck = time();
         
         try {
-            // Prüfe Timestamp der letzten DB-Änderung vs. letzter Sync
-            $lastSync = rex_addon::get('synch')->getConfig('last_auto_sync', 0);
-            
-            // Prüfe Module
-            $sql = rex_sql::factory();
-            $sql->setQuery('SELECT MAX(UNIX_TIMESTAMP(updatedate)) as last_update FROM rex_module');
-            $moduleUpdate = (int)$sql->getValue('last_update');
-            
-            if ($moduleUpdate > $lastSync) {
-                $lastResult = true;
-                return true;
-            }
-            
-            // Prüfe Templates  
-            $sql->setQuery('SELECT MAX(UNIX_TIMESTAMP(updatedate)) as last_update FROM rex_template');
-            $templateUpdate = (int)$sql->getValue('last_update');
-            
-            if ($templateUpdate > $lastSync) {
-                $lastResult = true;
-                return true;
-            }
-            
-            // Prüfe Actions
-            $sql->setQuery('SELECT MAX(UNIX_TIMESTAMP(updatedate)) as last_update FROM rex_action');
-            $actionUpdate = (int)$sql->getValue('last_update');
-            
-            if ($actionUpdate > $lastSync) {
-                $lastResult = true;
-                return true;
-            }
-            
-            // Prüfe Dateisystem-Timestamps (vereinfacht)
-            $dataPath = self::getBasePath();
-            if (is_dir($dataPath)) {
-                $dirTime = filemtime($dataPath);
-                if ($dirTime && $dirTime > $lastSync) {
-                    $lastResult = true;
-                    return true;
-                }
-            }
-            
-            $lastResult = false;
-            return false;
+            $addon = rex_addon::get('synch');
+            $previousHash = (string) $addon->getConfig('last_state_hash', '');
+            $currentHash = self::calculateGlobalStateHash();
+
+            // Erstlauf oder Hash-Änderung => synchronisieren
+            $lastResult = $previousHash === '' || $currentHash !== $previousHash;
+
+            return $lastResult;
             
         } catch (Exception $e) {
             error_log('SYNCH hasChanges() ERROR: ' . $e->getMessage());
@@ -200,24 +163,55 @@ class Manager
     public static function start(): void
     {
         try {
-            // Module synchronisieren
             $moduleSync = new ModuleSynchronizer();
-            $moduleSync->sync();
-            
-            // Templates synchronisieren
             $templateSync = new TemplateSynchronizer();
+            $actionSync = new ActionSynchronizer();
+
+            // Module synchronisieren
+            $moduleSync->sync();
+
+            // Templates synchronisieren
             $templateSync->sync();
 
             // Actions synchronisieren
-            $actionSync = new ActionSynchronizer();
             $actionSync->sync();
-            
-            // Timestamp der letzten Synchronisation speichern
-            rex_addon::get('synch')->setConfig('last_auto_sync', time());
+
+            // Letzten erfolgreichen Zustand speichern
+            $addon = rex_addon::get('synch');
+            $addon->setConfig('last_auto_sync', time());
+            $addon->setConfig(
+                'last_state_hash',
+                self::hashParts([
+                    (string) $addon->getConfig('sync_direction', 'files_to_db'),
+                    $moduleSync->calculateStateHash(),
+                    $templateSync->calculateStateHash(),
+                    $actionSync->calculateStateHash(),
+                ])
+            );
             
         } catch (Exception $e) {
             // Fehler nur loggen, nicht abbrechen
             error_log('SYNCH AUTO-SYNC ERROR: ' . $e->getMessage());
         }
+    }
+
+    private static function calculateGlobalStateHash(): string
+    {
+        $addon = rex_addon::get('synch');
+
+        return self::hashParts([
+            (string) $addon->getConfig('sync_direction', 'files_to_db'),
+            (new ModuleSynchronizer())->calculateStateHash(),
+            (new TemplateSynchronizer())->calculateStateHash(),
+            (new ActionSynchronizer())->calculateStateHash(),
+        ]);
+    }
+
+    /**
+     * @param list<string> $parts
+     */
+    private static function hashParts(array $parts): string
+    {
+        return hash('sha256', implode('|', $parts));
     }
 }

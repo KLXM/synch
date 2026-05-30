@@ -1,71 +1,71 @@
-title = Synch
-settings = Einstellungen
-help = Hilfe
+synch_title = Synch
+synch_settings = Einstellungen
+synch_help = Hilfe
 
 # Settings
-settings_title = Synch Einstellungen
-auto_generate_keys = Automatische Key-Generierung
-auto_generate_keys_note = Generiert automatisch eindeutige Keys für Module/Templates ohne Key
+synch_settings_title = Synch Einstellungen
+synch_auto_generate_keys = Automatische Key-Generierung
+synch_auto_generate_keys_note = Generiert automatisch eindeutige Keys für Module/Templates ohne Key
 
-key_generation_strategy = Key-Generierungs-Strategie
-key_generation_strategy_note = Strategie für die automatische Key-Generierung
-update_existing_on_key_conflict = Existierende Items aktualisieren
-update_existing_on_key_conflict_note = Verhindert Duplikate: Aktualisiert existierende Module/Templates bei Key-Konflikten
+synch_key_generation_strategy = Key-Generierungs-Strategie
+synch_key_generation_strategy_note = Strategie für die automatische Key-Generierung
+synch_update_existing_on_key_conflict = Existierende Items aktualisieren
+synch_update_existing_on_key_conflict_note = Verhindert Duplikate: Aktualisiert existierende Module/Templates bei Key-Konflikten
 
 # Key generation strategies
-strategy_name_based = Aus Name ableiten (empfohlen)
-strategy_date_name = Datum + Name
-strategy_hash_based = Hash basiert
+synch_strategy_name_based = Aus Name ableiten (empfohlen)
+synch_strategy_date_name = Datum + Name
+synch_strategy_hash_based = Hash basiert
 
 # Messages
-sync_success = Synchronisation erfolgreich abgeschlossen
-sync_error = Fehler bei der Synchronisation
-no_items_to_sync = Keine Items zum Synchronisieren gefunden
-config_saved = Einstellungen erfolgreich gespeichert
-save_settings = Einstellungen speichern
-sync_now = Jetzt synchronisieren
+synch_sync_success = Synchronisation erfolgreich abgeschlossen
+synch_sync_error = Fehler bei der Synchronisation
+synch_no_items_to_sync = Keine Items zum Synchronisieren gefunden
+synch_config_saved = Einstellungen erfolgreich gespeichert
+synch_save_settings = Einstellungen speichern
+synch_sync_now = Jetzt synchronisieren
 
 # Sections
-sync_options = Synchronisations-Optionen
-folder_options = Ordner-Optionen
-status_info = Status-Information
+synch_sync_options = Synchronisations-Optionen
+synch_folder_options = Ordner-Optionen
+synch_status_info = Status-Information
 
 # Status
-modules_in_db = Module in Datenbank
-templates_in_db = Templates in Datenbank
-sync_description = Synchronisiert Module, Templates und Actions zwischen Dateisystem und Datenbank mit der modernen key-basierten Methode.
-actions_in_db = Actions in Datenbank
+synch_modules_in_db = Module in Datenbank
+synch_templates_in_db = Templates in Datenbank
+synch_sync_description = Synchronisiert Module, Templates und Actions zwischen Dateisystem und Datenbank mit der modernen key-basierten Methode.
+synch_actions_in_db = Actions in Datenbank
 
 # Performance
-change_detection = Intelligente Change-Detection
-change_detection_note = Synchronisiert nur bei tatsächlichen Änderungen für bessere Performance
-sync_performance = Sync-Performance optimiert
-cache_enabled = 60s Cache für Change-Detection
+synch_change_detection = Intelligente Change-Detection
+synch_change_detection_note = Synchronisiert nur bei tatsächlichen Änderungen für bessere Performance
+synch_sync_performance = Sync-Performance optimiert
+synch_cache_enabled = 60s Cache für Change-Detection
 
 # Sync Control
-sync_paused = Auto-Sync pausiert
-sync_active = Auto-Sync aktiv
-pause_sync = Auto-Sync pausieren
-resume_sync = Auto-Sync fortsetzen
-pause_sync_note = Pausiert die automatische Synchronisation für 30 Minuten (für Entwicklung)
-sync_status = Sync-Status
+synch_sync_paused = Auto-Sync pausiert
+synch_sync_active = Auto-Sync aktiv
+synch_pause_sync = Auto-Sync pausieren
+synch_resume_sync = Auto-Sync fortsetzen
+synch_pause_sync_note = Pausiert die automatische Synchronisation für 30 Minuten (für Entwicklung)
+synch_sync_status = Sync-Status
 
 # Auto-Sync
-sync_frontend = Im Frontend synchronisieren
-sync_frontend_note = Nur wenn als Admin im Backend eingeloggt
-sync_backend = Im Backend synchronisieren  
-sync_backend_note = Nur wenn als Admin eingeloggt
-sync_direction = Synchronisations-Richtung
-sync_direction_note = Legt fest, in welche Richtung synchronisiert wird
-auto_sync_paused = Auto-Sync pausiert (30min)
-auto_sync_resumed = Auto-Sync fortgesetzt
-pause_auto_sync = Auto-Sync pausieren (30min)
-resume_auto_sync = Auto-Sync fortsetzen
-auto_pause_duration = Pause-Dauer: 30 Minuten
+synch_sync_frontend = Im Frontend synchronisieren
+synch_sync_frontend_note = Nur wenn als Admin im Backend eingeloggt
+synch_sync_backend = Im Backend synchronisieren  
+synch_sync_backend_note = Nur wenn als Admin eingeloggt
+synch_sync_direction = Synchronisations-Richtung
+synch_sync_direction_note = Legt fest, in welche Richtung synchronisiert wird
+synch_auto_sync_paused = Auto-Sync pausiert (30min)
+synch_auto_sync_resumed = Auto-Sync fortgesetzt
+synch_pause_auto_sync = Auto-Sync pausieren (30min)
+synch_resume_auto_sync = Auto-Sync fortsetzen
+synch_auto_pause_duration = Pause-Dauer: 30 Minuten
 
 # Descriptive Filenames
-descriptive_filenames = Sprechende Dateinamen
-descriptive_filenames_note = Verwendet Modulnamen in Dateinamen für bessere IDE-Integration
-toggle_descriptive_filenames = Dateinamen-Format umstellen
-filenames_renamed = Dateinamen erfolgreich umgestellt
+synch_descriptive_filenames = Sprechende Dateinamen
+synch_descriptive_filenames_note = Verwendet Modulnamen in Dateinamen für bessere IDE-Integration
+synch_toggle_descriptive_filenames = Dateinamen-Format umstellen
+synch_filenames_renamed = Dateinamen erfolgreich umgestellt
 

@@ -1,27 +1,27 @@
 package: synch
-version: '1.0.0'
+version: '2.0.0'
 author: 'KLXM Crossmedia GmbH'
 supportpage: 'https://github.com/KLXM/synch'
 license: MIT
 
 page:
-    title: 'translate:title'
+    title: 'translate:synch_title'
     perm: admin
     icon: rex-icon fa-refresh
     subpages:
-        settings: { title: 'translate:settings' }
-        help: { title: 'translate:help', subPath: README.md, itemClass: 'pull-right' }
+        settings: { title: 'translate:synch_settings' }
+        help: { title: 'translate:synch_help', subPath: README.md, itemClass: 'pull-right' }
 
 requires:
     redaxo: '^5.15.0'
 
 default_config:
-    auto_generate_keys: true
-    key_generation_strategy: 'name_based'
-    update_existing_on_key_conflict: true
     sync_frontend: false
-    sync_backend: true
-    sync_direction: 'files_to_db'  # 'bidirectional', 'db_to_files', 'files_to_db'
+    sync_backend: false
+    sync_direction: 'files_to_db'
+    conflict_strategy: 'newer_wins'
+    update_existing_on_key_conflict: true
+    allow_empty_filesystem_cleanup: false
 
 console_commands:
     synch:sync: KLXM\Synch\SyncCommand

@@ -50,11 +50,21 @@ class ModuleSynchronizer extends Synchronizer
     }
 
     /**
+     * @return list<string>
+     */
+    protected function getKnownFileTypes(): array
+    {
+        return ['input', 'output'];
+    }
+
+    /**
      * Schreibt die Moduldateien ins Dateisystem
+        *
+        * @param array<string, mixed> $item
      */
     protected function writeItemFiles(string $dir, array $item): void
     {
-        $key = $item['key'];
+        $key = (string) $item['key'];
         
         // 1. metadata.yml
         $metadata = [
@@ -79,10 +89,15 @@ class ModuleSynchronizer extends Synchronizer
 
     /**
      * Aktualisiert ein existierendes Modul in der DB aus dem Dateisystem
+        *
+        * @param array<string, mixed> $metadata
      */
     protected function updateItem(int $id, string $dir, array $metadata): void
     {
-        $key = $metadata['key'];
+        $key = (string) ($metadata['key'] ?? '');
+        if ($key === '') {
+            $key = $this->generateKey((string) ($metadata['name'] ?? 'unnamed_module'));
+        }
         
         $sql = rex_sql::factory();
         $sql->setTable(rex::getTable('module'));
@@ -95,16 +110,10 @@ class ModuleSynchronizer extends Synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Input aus Datei lesen
-        $inputFile = $dir . $this->getFilename($key, 'input');
-        if (file_exists($inputFile)) {
-            $sql->setValue('input', rex_file::get($inputFile));
-        }
+        $sql->setValue('input', $this->readContentFile($dir, $key, 'input'));
         
         // Output aus Datei lesen
-        $outputFile = $dir . $this->getFilename($key, 'output');
-        if (file_exists($outputFile)) {
-            $sql->setValue('output', rex_file::get($outputFile));
-        }
+        $sql->setValue('output', $this->readContentFile($dir, $key, 'output'));
         
         $sql->update();
         
@@ -116,6 +125,8 @@ class ModuleSynchronizer extends Synchronizer
     /**
      * Erstellt ein neues Modul in der DB aus dem Dateisystem
      * Verwendet AUTO_INCREMENT für die ID
+        *
+        * @param array<string, mixed> $metadata
      */
     protected function createItem(string $dir, array $metadata): void
     {
@@ -139,25 +150,15 @@ class ModuleSynchronizer extends Synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Input aus Datei lesen
-        $inputFile = $dir . $this->getFilename($key, 'input');
-        if (file_exists($inputFile)) {
-            $sql->setValue('input', rex_file::get($inputFile));
-        } else {
-            $sql->setValue('input', '');
-        }
+        $sql->setValue('input', $this->readContentFile($dir, $key, 'input'));
         
         // Output aus Datei lesen
-        $outputFile = $dir . $this->getFilename($key, 'output');
-        if (file_exists($outputFile)) {
-            $sql->setValue('output', rex_file::get($outputFile));
-        } else {
-            $sql->setValue('output', '');
-        }
+        $sql->setValue('output', $this->readContentFile($dir, $key, 'output'));
         
         $sql->insert();
         
         // Metadata mit generiertem Key aktualisieren
-        if ($key !== $metadata['key']) {
+        if ($key !== (string) ($metadata['key'] ?? '')) {
             $metadata['key'] = $key;
             $metadata['createdate'] = date('Y-m-d H:i:s');
             $metadata['updatedate'] = date('Y-m-d H:i:s');
@@ -187,7 +188,7 @@ class ModuleSynchronizer extends Synchronizer
         ', [$id]);
         
         for ($i = 0, $rows = $sql->getRows(); $i < $rows; ++$i) {
-            \rex_article_cache::delete($sql->getValue('id'));
+            \rex_article_cache::delete((int) $sql->getValue('id'));
             $sql->next();
         }
         

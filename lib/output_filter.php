@@ -21,10 +21,12 @@ class OutputFilter
 
     /**
      * Filtert den HTML Output und entfernt Lösch-Buttons
+        *
+        * @param \rex_extension_point<string> $ep
      */
     public static function filter(\rex_extension_point $ep): string
     {
-        $content = $ep->getSubject();
+        $content = (string) $ep->getSubject();
         $addon = rex_addon::get('synch');
         $syncDirection = $addon->getConfig('sync_direction', 'files_to_db');
         
@@ -37,19 +39,24 @@ class OutputFilter
         
         // Module-Seite
         if ($page === 'modules/modules') {
-            $content = self::removeDeleteButtons($content, 'module');
-            $content = self::addWarningMessage($content, 'Module können nur im Dateisystem gelöscht werden');
+            $content = self::removeDeleteButtons($content);
+            if ($syncDirection === 'files_to_db') {
+                $content = self::removeModuleEditButtons($content);
+                $content = self::addWarningMessage($content, 'Module können in diesem Modus nicht im Backend bearbeitet oder angelegt werden');
+            } else {
+                $content = self::addWarningMessage($content, 'Module können nur im Dateisystem gelöscht werden');
+            }
         }
         
         // Template-Seite
         if ($page === 'templates') {
-            $content = self::removeDeleteButtons($content, 'template');
+            $content = self::removeDeleteButtons($content);
             $content = self::addWarningMessage($content, 'Templates können nur im Dateisystem gelöscht werden');
         }
         
         // Action-Seite
         if ($page === 'modules/actions') {
-            $content = self::removeDeleteButtons($content, 'action');
+            $content = self::removeDeleteButtons($content);
             $content = self::addWarningMessage($content, 'Actions können nur im Dateisystem gelöscht werden');
         }
         
@@ -59,21 +66,21 @@ class OutputFilter
     /**
      * Entfernt Lösch-Buttons aus der Tabelle
      */
-    protected static function removeDeleteButtons(string $content, string $type): string
+    protected static function removeDeleteButtons(string $content): string
     {
         // Lösch-Links entfernen (function=delete)
         $content = preg_replace(
             '/<a[^>]*href="[^"]*function=delete[^"]*"[^>]*>.*?<\/a>/is',
             '<span class="text-muted" title="Löschen nur im Dateisystem möglich"><i class="rex-icon rex-icon-delete-disabled"></i></span>',
             $content
-        );
+        ) ?? $content;
         
         // Zusätzlich: data-confirm Attribute entfernen (falls noch vorhanden)
         $content = preg_replace(
             '/data-confirm="[^"]*löschen[^"]*"/i',
             '',
             $content
-        );
+        ) ?? $content;
         
         return $content;
     }
@@ -102,8 +109,22 @@ class OutputFilter
             '$1' . $warning,
             $content,
             1
-        );
+        ) ?? $content;
         
+        return $content;
+    }
+
+    /**
+     * Entfernt Edit- und Add-Links auf der Module-Seite.
+     */
+    protected static function removeModuleEditButtons(string $content): string
+    {
+        $content = preg_replace(
+            '/<a[^>]*href="[^"]*(?:function|func)=(?:edit|add)[^"]*"[^>]*>.*?<\/a>/is',
+            '<span class="text-muted" title="Bearbeiten nur im Dateisystem möglich"><i class="rex-icon rex-icon-edit"></i></span>',
+            $content
+        ) ?? $content;
+
         return $content;
     }
 }

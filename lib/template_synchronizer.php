@@ -39,11 +39,21 @@ class TemplateSynchronizer extends Synchronizer
     }
 
     /**
+     * @return list<string>
+     */
+    protected function getKnownFileTypes(): array
+    {
+        return ['template'];
+    }
+
+    /**
      * Schreibt die Template-Dateien ins Dateisystem
+        *
+        * @param array<string, mixed> $item
      */
     protected function writeItemFiles(string $dir, array $item): void
     {
-        $key = $item['key'];
+        $key = (string) $item['key'];
         
         // 1. metadata.yml
         $metadata = [
@@ -66,10 +76,15 @@ class TemplateSynchronizer extends Synchronizer
 
     /**
      * Aktualisiert ein existierendes Template in der DB
+        *
+        * @param array<string, mixed> $metadata
      */
     protected function updateItem(int $id, string $dir, array $metadata): void
     {
-        $key = $metadata['key'];
+        $key = (string) ($metadata['key'] ?? '');
+        if ($key === '') {
+            $key = $this->generateKey((string) ($metadata['name'] ?? 'unnamed_template'));
+        }
         
         $sql = rex_sql::factory();
         $sql->setTable(rex::getTable('template'));
@@ -90,10 +105,7 @@ class TemplateSynchronizer extends Synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Template-Code aus Datei lesen
-        $templateFile = $dir . $this->getFilename($key, 'template');
-        if (file_exists($templateFile)) {
-            $sql->setValue('content', rex_file::get($templateFile));
-        }
+        $sql->setValue('content', $this->readContentFile($dir, $key, 'template'));
         
         $sql->update();
         
@@ -107,6 +119,8 @@ class TemplateSynchronizer extends Synchronizer
 
     /**
      * Erstellt ein neues Template in der DB
+        *
+        * @param array<string, mixed> $metadata
      */
     protected function createItem(string $dir, array $metadata): void
     {
@@ -138,12 +152,7 @@ class TemplateSynchronizer extends Synchronizer
         $sql->setValue('updateuser', rex::getUser()?->getLogin() ?? 'synch');
         
         // Template-Code aus Datei lesen
-        $templateFile = $dir . $this->getFilename($key, 'template');
-        if (file_exists($templateFile)) {
-            $sql->setValue('content', rex_file::get($templateFile));
-        } else {
-            $sql->setValue('content', '');
-        }
+        $sql->setValue('content', $this->readContentFile($dir, $key, 'template'));
         
         $sql->insert();
         
@@ -152,7 +161,7 @@ class TemplateSynchronizer extends Synchronizer
         \rex_template_cache::generate($newId);
         
         // Metadata mit generiertem Key aktualisieren
-        if ($key !== $metadata['key']) {
+        if ($key !== (string) ($metadata['key'] ?? '')) {
             $metadata['key'] = $key;
             $metadata['createdate'] = date('Y-m-d H:i:s');
             $metadata['updatedate'] = date('Y-m-d H:i:s');

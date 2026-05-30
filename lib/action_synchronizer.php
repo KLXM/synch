@@ -46,10 +46,12 @@ class ActionSynchronizer extends Synchronizer
 
     /**
      * Schreibt die Action-Dateien ins Dateisystem
+        *
+        * @param array<string, mixed> $item
      */
     protected function writeItemFiles(string $dir, array $item): void
     {
-        $key = $item['key'];
+        $key = (string) $item['key'];
         
         // metadata.yml (Actions speichern den Code in metadata, nicht in separaten Dateien)
         $metadata = [
@@ -71,10 +73,15 @@ class ActionSynchronizer extends Synchronizer
 
     /**
      * Aktualisiert eine existierende Action in der DB
+        *
+        * @param array<string, mixed> $metadata
      */
     protected function updateItem(int $id, string $dir, array $metadata): void
     {
-        $key = $metadata['key'];
+        $key = (string) ($metadata['key'] ?? '');
+        if ($key === '') {
+            $key = $this->generateKey((string) ($metadata['name'] ?? 'unnamed_action'));
+        }
         
         $sql = rex_sql::factory();
         $sql->setTable(rex::getTable('action'));
@@ -100,6 +107,8 @@ class ActionSynchronizer extends Synchronizer
 
     /**
      * Erstellt eine neue Action in der DB
+        *
+        * @param array<string, mixed> $metadata
      */
     protected function createItem(string $dir, array $metadata): void
     {
@@ -130,7 +139,7 @@ class ActionSynchronizer extends Synchronizer
         $sql->insert();
         
         // Metadata mit generiertem Key aktualisieren
-        if ($key !== $metadata['key']) {
+        if ($key !== (string) ($metadata['key'] ?? '')) {
             $metadata['key'] = $key;
             $metadata['createdate'] = date('Y-m-d H:i:s');
             $metadata['updatedate'] = date('Y-m-d H:i:s');

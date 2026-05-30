@@ -1,205 +1,100 @@
 <?php
 
 /**
- * Install-Script für synch Addon
- * Erweitert die Tabellen um Key-Spalten und generiert Keys für bestehende Einträge
+ * Install-Script fuer das synch Addon.
  */
 
-$sql = rex_sql::factory();
-
-// Automatische Synchronisation während Installation deaktivieren
 $addon = rex_addon::get('synch');
-$originalSyncBackend = $addon->getConfig('sync_backend', false);
-$addon->setConfig('sync_backend', false);
+
+$cleanKey = static function (string $name): string {
+    $key = strtolower($name);
+    $key = preg_replace('/[^a-zA-Z0-9_]/', '_', $key) ?? $key;
+    $key = preg_replace('/_+/', '_', $key) ?? $key;
+
+    return strtolower(trim($key, '_'));
+};
 
 /**
- * Hilfsfunktion zum Generieren eines sauberen Keys
+ * @param string $tableName
  */
-function generateCleanKey(string $name): string {
-    // Umlaute ersetzen
-    $key = str_replace(['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'], 
-                      ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'], $name);
-    
-    // Nur alphanumerische Zeichen und Unterstriche
-    $key = preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
-    
-    // Mehrfache Unterstriche entfernen
-    $key = preg_replace('/_+/', '_', $key);
-    
-    // Unterstriche am Anfang/Ende entfernen
-    $key = trim($key, '_');
-    
-    // Kleinbuchstaben
-    return strtolower($key);
-}
+$ensureKeyColumn = static function (string $tableName): void {
+    if ($tableName === '') {
+        throw new \RuntimeException('Leerer Tabellenname ist nicht erlaubt.');
+    }
+
+    $table = rex_sql_table::get($tableName);
+    $table->ensureColumn(new rex_sql_column('key', 'varchar(191)', true));
+    $table->ensureIndex(new rex_sql_index('key', ['key'], rex_sql_index::UNIQUE));
+    $table->alter();
+};
 
 /**
- * Hilfsfunktion um eindeutigen Key zu generieren
+ * @param string $tableName
+ * @param string $fallbackPrefix
  */
-function ensureUniqueKey(string $baseKey, string $table, string $keyColumn, int $excludeId = null): string {
-    global $sql;
-    $key = $baseKey;
-    $counter = 1;
-    
-    while (true) {
-        $whereClause = $keyColumn . ' = ?';
-        $params = [$key];
-        
-        // Aktuelles Item ausschließen
-        if ($excludeId) {
-            $whereClause .= ' AND id != ?';
-            $params[] = $excludeId;
-        }
-        
-        $sql->setQuery('SELECT COUNT(*) as count FROM ' . $table . ' WHERE ' . $whereClause, $params);
-        if ($sql->getValue('count') == 0) {
-            break;
-        }
-        $key = $baseKey . '_' . $counter;
-        $counter++;
-    }
-    
-    return $key;
-}
+$fillMissingKeys = static function (string $tableName, string $fallbackPrefix) use ($cleanKey): void {
+    $sql = rex_sql::factory();
+    $sql->setQuery('SELECT id, name, `key` FROM ' . $tableName . ' ORDER BY id');
 
-// 1. KEY-SPALTE ZU REX_MODULE HINZUFÜGEN
-try {
-    $sql->setQuery('DESCRIBE ' . rex::getTable('module'));
-    $columns = [];
-    
     while ($sql->hasNext()) {
-        $columns[] = $sql->getValue('Field');
+        $id = (int) $sql->getValue('id');
+        $name = (string) ($sql->getValue('name') ?: ($fallbackPrefix . '_' . $id));
+        $existingKey = (string) $sql->getValue('key');
+
+        if ($existingKey !== '') {
+            $sql->next();
+            continue;
+        }
+
+        $baseKey = $cleanKey($name);
+        if ($baseKey === '') {
+            $baseKey = $fallbackPrefix . '_' . $id;
+        }
+
+        $uniqueKey = $baseKey;
+        $counter = 1;
+
+        while (true) {
+            $checkSql = rex_sql::factory();
+            $checkSql->setQuery('SELECT id FROM ' . $tableName . ' WHERE `key` = ? AND id <> ? LIMIT 1', [$uniqueKey, $id]);
+            if ($checkSql->getRows() === 0) {
+                break;
+            }
+
+            $uniqueKey = $baseKey . '_' . $counter;
+            ++$counter;
+        }
+
+        $updateSql = rex_sql::factory();
+        $updateSql->setTable($tableName);
+        $updateSql->setWhere(['id' => $id]);
+        $updateSql->setValue('key', $uniqueKey);
+        $updateSql->update();
+
         $sql->next();
     }
-    
-    if (!in_array('key', $columns)) {
-        $sql->setQuery('
-            ALTER TABLE ' . rex::getTable('module') . ' 
-            ADD COLUMN `key` varchar(191) NULL AFTER `id`,
-            ADD UNIQUE KEY `key` (`key`)
-        ');
-        
-        echo rex_view::success('Module-Tabelle erfolgreich um Key-Spalte erweitert');
-        
-        // Keys für bestehende Module generieren
-        $sql->setQuery('SELECT id, name FROM ' . rex::getTable('module') . ' WHERE `key` IS NULL OR `key` = ""');
-        while ($sql->hasNext()) {
-            $id = $sql->getValue('id');
-            $name = $sql->getValue('name') ?: 'module_' . $id;
-            
-            $baseKey = generateCleanKey($name);
-            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('module'), 'key', $id);
-            
-            $updateSql = rex_sql::factory();
-            $updateSql->setTable(rex::getTable('module'));
-            $updateSql->setWhere(['id' => $id]);
-            $updateSql->setValue('key', $uniqueKey);
-            $updateSql->update();
-            
-            $sql->next();
-        }
-        
-        echo rex_view::success('Keys für bestehende Module generiert');
-    }
-    
-} catch (Exception $e) {
-    echo rex_view::error('Fehler beim Erweitern der Module-Tabelle: ' . $e->getMessage());
-}
+};
 
-// 2. KEY-SPALTE ZU REX_TEMPLATE HINZUFÜGEN
 try {
-    $sql->setQuery('DESCRIBE ' . rex::getTable('template'));
-    $columns = [];
-    
-    while ($sql->hasNext()) {
-        $columns[] = $sql->getValue('Field');
-        $sql->next();
-    }
-    
-    if (!in_array('key', $columns)) {
-        $sql->setQuery('
-            ALTER TABLE ' . rex::getTable('template') . ' 
-            ADD COLUMN `key` varchar(191) NULL AFTER `id`,
-            ADD UNIQUE KEY `key` (`key`)
-        ');
-        
-        echo rex_view::success('Template-Tabelle erfolgreich um Key-Spalte erweitert');
-        
-        // Keys für bestehende Templates generieren
-        $sql->setQuery('SELECT id, name FROM ' . rex::getTable('template') . ' WHERE `key` IS NULL OR `key` = ""');
-        while ($sql->hasNext()) {
-            $id = $sql->getValue('id');
-            $name = $sql->getValue('name') ?: 'template_' . $id;
-            
-            $baseKey = generateCleanKey($name);
-            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('template'), 'key', $id);
-            
-            $updateSql = rex_sql::factory();
-            $updateSql->setTable(rex::getTable('template'));
-            $updateSql->setWhere(['id' => $id]);
-            $updateSql->setValue('key', $uniqueKey);
-            $updateSql->update();
-            
-            $sql->next();
-        }
-        
-        echo rex_view::success('Keys für bestehende Templates generiert');
-    }
-    
-} catch (Exception $e) {
-    echo rex_view::error('Fehler beim Erweitern der Template-Tabelle: ' . $e->getMessage());
+    $ensureKeyColumn(rex::getTable('module'));
+    $fillMissingKeys(rex::getTable('module'), 'module');
+
+    $ensureKeyColumn(rex::getTable('template'));
+    $fillMissingKeys(rex::getTable('template'), 'template');
+
+    $ensureKeyColumn(rex::getTable('action'));
+    $fillMissingKeys(rex::getTable('action'), 'action');
+
+    // Stabile und sichere Defaults.
+    $addon->setConfig('sync_frontend', false);
+    $addon->setConfig('sync_backend', false);
+    $addon->setConfig('sync_direction', 'files_to_db');
+    $addon->setConfig('conflict_strategy', 'newer_wins');
+    $addon->setConfig('update_existing_on_key_conflict', true);
+    $addon->setConfig('allow_empty_filesystem_cleanup', false);
+
+    echo rex_view::success('Synch Addon erfolgreich installiert. Key-Spalten sind vorhanden und fehlende Keys wurden erzeugt.');
+    echo rex_view::info('<strong>Hinweis:</strong> Auto-Sync ist standardmaessig deaktiviert und kann in den Einstellungen aktiviert werden.');
+} catch (Throwable $throwable) {
+    echo rex_view::error('Fehler bei der Installation: ' . $throwable->getMessage());
 }
-
-// 3. KEY-SPALTE ZU REX_ACTION HINZUFÜGEN
-try {
-    $sql->setQuery('DESCRIBE ' . rex::getTable('action'));
-    $columns = [];
-    
-    while ($sql->hasNext()) {
-        $columns[] = $sql->getValue('Field');
-        $sql->next();
-    }
-    
-    if (!in_array('key', $columns)) {
-        $sql->setQuery('
-            ALTER TABLE ' . rex::getTable('action') . ' 
-            ADD COLUMN `key` varchar(191) NULL AFTER `id`,
-            ADD UNIQUE KEY `key` (`key`)
-        ');
-        
-        echo rex_view::success('Action-Tabelle erfolgreich um Key-Spalte erweitert');
-        
-        // Keys für bestehende Actions generieren
-        $sql->setQuery('SELECT id, name FROM ' . rex::getTable('action') . ' WHERE `key` IS NULL OR `key` = ""');
-        while ($sql->hasNext()) {
-            $id = $sql->getValue('id');
-            $name = $sql->getValue('name') ?: 'action_' . $id;
-            
-            $baseKey = generateCleanKey($name);
-            $uniqueKey = ensureUniqueKey($baseKey, rex::getTable('action'), 'key', $id);
-            
-            $updateSql = rex_sql::factory();
-            $updateSql->setTable(rex::getTable('action'));
-            $updateSql->setWhere(['id' => $id]);
-            $updateSql->setValue('key', $uniqueKey);
-            $updateSql->update();
-            
-            $sql->next();
-        }
-        
-        echo rex_view::success('Keys für bestehende Actions generiert');
-    }
-    
-} catch (Exception $e) {
-    echo rex_view::error('Fehler beim Erweitern der Action-Tabelle: ' . $e->getMessage());
-}
-
-// Ursprüngliche Synchronisations-Einstellung wiederherstellen
-// WICHTIG: Per Default ist die automatische Synchronisation DEAKTIVIERT
-// Der Benutzer muss sie explizit in den Einstellungen aktivieren
-$addon->setConfig('sync_backend', false);  // Explizit deaktiviert lassen
-$addon->setConfig('sync_frontend', false); // Explizit deaktiviert lassen
-
-// Installation erfolgreich abgeschlossen
-echo rex_view::success('Synch Addon erfolgreich installiert. Alle Tabellen wurden um Key-Spalten erweitert und bestehende Einträge haben automatisch Keys erhalten.');
-echo rex_view::info('<strong>Hinweis:</strong> Die automatische Synchronisation ist standardmäßig <strong>deaktiviert</strong>. Sie können sie in den Addon-Einstellungen aktivieren.');
