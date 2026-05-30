@@ -33,7 +33,6 @@ if (rex::isBackend()) {
         && in_array($backendFunction, ['add', 'edit', 'delete'], true)
     ) {
         rex_response::sendRedirect(rex_url::backendPage('modules/modules'));
-        exit;
     }
 
     OutputFilter::register();
